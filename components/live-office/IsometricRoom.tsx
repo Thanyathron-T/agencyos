@@ -264,76 +264,73 @@ export default function IsometricRoom() {
         {/* Background */}
         <rect width="1200" height="800" fill="url(#roomBg)" />
 
-        {/* ── 1. Walls ──────────────────────────────── */}
-        <polygon
-          points={pp([[0,0,0],[0,ROWS,0],[0,ROWS,WALL_H],[0,0,WALL_H]])}
-          fill="url(#wallL)" stroke="#0E0C20" strokeWidth={1}
-        />
+        {/* ── 1. Back-right wall (row=0 face) — furthest back, draw first ── */}
         <polygon
           points={pp([[0,0,0],[COLS,0,0],[COLS,0,WALL_H],[0,0,WALL_H]])}
           fill="url(#wallR)" stroke="#0E0C20" strokeWidth={1}
         />
 
-        {/* Ceiling edge highlights */}
-        <line x1={iso(0,0,WALL_H).x} y1={iso(0,0,WALL_H).y}
-              x2={iso(0,ROWS,WALL_H).x} y2={iso(0,ROWS,WALL_H).y}
-              stroke="#302860" strokeWidth={1.5} />
+        {/* ── 2. Back-left wall (col=0 face) — overlaps corner, draw second ── */}
+        <polygon
+          points={pp([[0,0,0],[0,ROWS,0],[0,ROWS,WALL_H],[0,0,WALL_H]])}
+          fill="url(#wallL)" stroke="#0E0C20" strokeWidth={1}
+        />
+
+        {/* Wall edge highlights + back corner line */}
         <line x1={iso(0,0,WALL_H).x} y1={iso(0,0,WALL_H).y}
               x2={iso(COLS,0,WALL_H).x} y2={iso(COLS,0,WALL_H).y}
               stroke="#282460" strokeWidth={1.5} />
+        <line x1={iso(0,0,WALL_H).x} y1={iso(0,0,WALL_H).y}
+              x2={iso(0,ROWS,WALL_H).x} y2={iso(0,ROWS,WALL_H).y}
+              stroke="#302860" strokeWidth={1.5} />
         <line x1={iso(0,0,0).x} y1={iso(0,0,0).y}
               x2={iso(0,0,WALL_H).x} y2={iso(0,0,WALL_H).y}
               stroke="#302860" strokeWidth={1.5} />
 
-        {/* Picture frames on left wall */}
-        {/* Upper-left frame — outer border */}
+        {/* Picture frames — drawn on top of left wall, before floor ── */}
         <polygon points={pp([[0,0.7,1.45],[0,1.3,1.45],[0,1.3,1.0],[0,0.7,1.0]])}
           fill="#2a1f0e" stroke="#1a1208" strokeWidth={1} />
-        {/* Upper-left frame — inner canvas */}
         <polygon points={pp([[0,0.78,1.38],[0,1.22,1.38],[0,1.22,1.07],[0,0.78,1.07]])}
           fill="#111111" />
-        {/* Lower-left frame — outer border */}
         <polygon points={pp([[0,1.9,1.1],[0,2.5,1.1],[0,2.5,0.65],[0,1.9,0.65]])}
           fill="#2a1f0e" stroke="#1a1208" strokeWidth={1} />
-        {/* Lower-left frame — inner canvas */}
         <polygon points={pp([[0,1.98,1.03],[0,2.42,1.03],[0,2.42,0.72],[0,1.98,0.72]])}
           fill="#111111" />
 
-        {/* ── Front wall panel — closes left-facing opening, low opacity ── */}
-        <polygon
-          points={pp([[0,ROWS,0],[COLS,ROWS,0],[COLS,ROWS,WALL_H],[0,ROWS,WALL_H]])}
-          fill="#1a1420"
-          opacity={0.3}
-          stroke="#0E0C20"
-          strokeWidth={1}
-        />
-
-        {/* ── 2. Floor tiles ────────────────────────── */}
+        {/* ── 3. Floor tiles (sorted back→front by c+r) ────────────── */}
         {tiles.map(({ c, r }) => (
           <Tile key={`tile-${c}-${r}`} c={c} r={r} />
         ))}
 
-        {/* ── 3. Furniture (back → front, left → right) ── */}
+        {/* ── 4–8. Furniture sorted by painter depth (col+row ascending) ── */}
 
-        {/* Bookshelf — flush against back-left wall corner */}
+        {/* depth=0.00  Bookshelf — back-left corner */}
         <Bookshelf col={0} row={0} />
 
-        {/* Desk row along the left wall — spaced for smaller desks */}
+        {/* depth=0.95  Desk 1 (left wall, back) then Lamp 1 (more right = later) */}
         <Desk col={0.05} row={0.9} />
-        <Desk col={0.05} row={1.55} />
-        <Desk col={0.05} row={2.2} />
-
-        {/* Original desk — mid-right */}
-        <Desk col={1.1} row={2.0} />
-
-        {/* Floor lamp 1 — near back-left */}
         <FloorLamp col={0.55} row={0.4} glowId="lampGlow1" />
 
-        {/* Sofa — center-right */}
+        {/* depth=1.60  Desk 2 (left wall, mid) */}
+        <Desk col={0.05} row={1.55} />
+
+        {/* depth=2.00  Sofa (center-right) */}
         <Sofa col={1.2} row={0.8} />
 
-        {/* Floor lamp 2 — beside sofa */}
+        {/* depth=2.25  Desk 3 (left wall, front) */}
+        <Desk col={0.05} row={2.2} />
+
+        {/* depth=3.10  Desk mid-right */}
+        <Desk col={1.1} row={2.0} />
+
+        {/* depth=3.65  Lamp 2 — furthest front */}
         <FloorLamp col={2.55} row={1.1} glowId="lampGlow2" />
+
+        {/* ── Front wall panel — translucent overlay, drawn last ── */}
+        <polygon
+          points={pp([[0,ROWS,0],[COLS,ROWS,0],[COLS,ROWS,WALL_H],[0,ROWS,WALL_H]])}
+          fill="#1a1420" opacity={0.3} stroke="#0E0C20" strokeWidth={1}
+        />
       </svg>
     </div>
   );
