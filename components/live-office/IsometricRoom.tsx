@@ -82,14 +82,14 @@ function Cuboid({
 
 /* ── Desk ────────────────────────────────────────────── */
 function Desk({ col, row }: { col: number; row: number }) {
-  // 40% smaller: cw 1.4→0.84, rd 0.7→0.42, h 0.55→0.33
+  // 35% smaller from original: cw 0.84→0.55, rd 0.42→0.27
   return (
     <Cuboid
       col={col} row={row}
-      cw={0.84} rd={0.42} h={0.33}
-      topColor="#6B4F2A"
-      leftColor="#4A3520"
-      rightColor="#5C4228"
+      cw={0.55} rd={0.27} h={0.33}
+      topColor="#5C3D1E"
+      leftColor="#3D2810"
+      rightColor="#4A3018"
     />
   );
 }
@@ -284,6 +284,20 @@ export default function IsometricRoom() {
         <line x1={iso(0,0,0).x} y1={iso(0,0,0).y}
               x2={iso(0,0,WALL_H).x} y2={iso(0,0,WALL_H).y}
               stroke="#302860" strokeWidth={1.5} />
+
+        {/* Picture frames on left wall */}
+        {/* Upper-left frame — outer border */}
+        <polygon points={pp([[0,0.7,1.45],[0,1.3,1.45],[0,1.3,1.0],[0,0.7,1.0]])}
+          fill="#2a1f0e" stroke="#1a1208" strokeWidth={1} />
+        {/* Upper-left frame — inner canvas */}
+        <polygon points={pp([[0,0.78,1.38],[0,1.22,1.38],[0,1.22,1.07],[0,0.78,1.07]])}
+          fill="#111111" />
+        {/* Lower-left frame — outer border */}
+        <polygon points={pp([[0,1.9,1.1],[0,2.5,1.1],[0,2.5,0.65],[0,1.9,0.65]])}
+          fill="#2a1f0e" stroke="#1a1208" strokeWidth={1} />
+        {/* Lower-left frame — inner canvas */}
+        <polygon points={pp([[0,1.98,1.03],[0,2.42,1.03],[0,2.42,0.72],[0,1.98,0.72]])}
+          fill="#111111" />
 
         {/* ── Front wall panel — closes left-facing opening, low opacity ── */}
         <polygon
