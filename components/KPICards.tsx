@@ -1,29 +1,31 @@
 import { kpiData } from "@/lib/mockData";
 
-const colorMap: Record<string, { bg: string; border: string; text: string; glow: string }> = {
+type ColorKey = "violet" | "cyan" | "emerald" | "pink";
+
+const colorMap: Record<ColorKey, { iconBg: string; iconText: string; border: string; glow: string }> = {
   violet: {
-    bg: "rgba(124,58,237,0.1)",
-    border: "rgba(124,58,237,0.3)",
-    text: "#a78bfa",
-    glow: "rgba(124,58,237,0.15)",
+    iconBg: "bg-violet-600/10",
+    iconText: "text-violet-400",
+    border: "border-violet-600/30",
+    glow: "from-violet-600/15",
   },
   cyan: {
-    bg: "rgba(6,182,212,0.1)",
-    border: "rgba(6,182,212,0.3)",
-    text: "#22d3ee",
-    glow: "rgba(6,182,212,0.15)",
+    iconBg: "bg-cyan-500/10",
+    iconText: "text-cyan-400",
+    border: "border-cyan-500/30",
+    glow: "from-cyan-500/15",
   },
   emerald: {
-    bg: "rgba(16,185,129,0.1)",
-    border: "rgba(16,185,129,0.3)",
-    text: "#34d399",
-    glow: "rgba(16,185,129,0.15)",
+    iconBg: "bg-emerald-500/10",
+    iconText: "text-emerald-400",
+    border: "border-emerald-500/30",
+    glow: "from-emerald-500/15",
   },
   pink: {
-    bg: "rgba(236,72,153,0.1)",
-    border: "rgba(236,72,153,0.3)",
-    text: "#f472b6",
-    glow: "rgba(236,72,153,0.15)",
+    iconBg: "bg-pink-500/10",
+    iconText: "text-pink-400",
+    border: "border-pink-500/30",
+    glow: "from-pink-500/15",
   },
 };
 
@@ -54,35 +56,31 @@ export default function KPICards() {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
       {kpiData.map((kpi) => {
-        const c = colorMap[kpi.color];
+        const c = colorMap[kpi.color as ColorKey];
+        if (!c) return null;
         return (
-          <div key={kpi.label}
-            className="rounded-2xl p-5 relative overflow-hidden group transition-transform hover:-translate-y-0.5"
-            style={{ background: "var(--surface)", border: `1px solid ${c.border}` }}>
-            {/* Glow bg */}
-            <div className="absolute inset-0 rounded-2xl opacity-60"
-              style={{ background: `radial-gradient(ellipse at top left, ${c.glow}, transparent 60%)` }} />
-
+          <div
+            key={kpi.label}
+            className={`rounded-2xl p-5 relative overflow-hidden transition-transform hover:-translate-y-0.5 bg-surface border ${c.border}`}
+          >
+            <div className={`absolute inset-0 rounded-2xl opacity-60 bg-gradient-to-br ${c.glow} to-transparent`} />
             <div className="relative">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: c.bg, color: c.text }}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.iconBg} ${c.iconText}`}>
                   {icons[kpi.icon]}
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{
-                    background: kpi.trend === "up" ? "rgba(16,185,129,0.15)" : "rgba(148,163,184,0.15)",
-                    color: kpi.trend === "up" ? "#34d399" : "var(--text-muted)",
-                  }}>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    kpi.trend === "up"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : "bg-slate-500/15 text-slate-400"
+                  }`}
+                >
                   {kpi.change}
                 </span>
               </div>
-              <div className="text-3xl font-bold tracking-tight mb-1" style={{ color: "var(--text)" }}>
-                {kpi.value}
-              </div>
-              <div className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                {kpi.label}
-              </div>
+              <div className="text-3xl font-bold tracking-tight mb-1 text-ink">{kpi.value}</div>
+              <div className="text-xs font-medium text-ink-muted">{kpi.label}</div>
             </div>
           </div>
         );

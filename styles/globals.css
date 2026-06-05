@@ -1,14 +1,12 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0a0a0f;
-  --surface: #111118;
-  --surface-2: #1a1a24;
-  --border: #2a2a3a;
-  --accent: #7c3aed;
-  --accent-2: #06b6d4;
-  --text: #f1f1f5;
-  --text-muted: #8888a0;
+@theme {
+  --color-canvas: #0a0a0f;
+  --color-surface: #111118;
+  --color-surface-2: #1a1a24;
+  --color-edge: #2a2a3a;
+  --color-ink: #f1f1f5;
+  --color-ink-muted: #8888a0;
 }
 
 * {
@@ -16,10 +14,26 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--text);
+  @apply bg-canvas text-ink;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Dot grid pattern for office zones */
+.bg-dots {
+  background-image: radial-gradient(circle, #2a2a3a 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+/* Scanline subtle texture */
+.bg-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.015) 2px,
+    rgba(255,255,255,0.015) 4px
+  );
 }
 
 ::-webkit-scrollbar {
@@ -27,9 +41,8 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--surface);
+  @apply bg-surface;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  @apply bg-edge rounded-sm;
 }

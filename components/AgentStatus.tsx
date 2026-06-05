@@ -1,20 +1,35 @@
 import { agents } from "@/lib/mockData";
 
-const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  active: { label: "Active", color: "rgba(16,185,129,0.15)", dot: "#10b981" },
-  idle: { label: "Idle", color: "rgba(148,163,184,0.12)", dot: "#94a3b8" },
-  processing: { label: "Processing", color: "rgba(245,158,11,0.15)", dot: "#f59e0b" },
+const statusConfig: Record<string, { label: string; bgClass: string; textClass: string; dotColor: string }> = {
+  active: {
+    label: "Active",
+    bgClass: "bg-emerald-500/15",
+    textClass: "text-emerald-400",
+    dotColor: "#10b981",
+  },
+  idle: {
+    label: "Idle",
+    bgClass: "bg-slate-500/10",
+    textClass: "text-slate-400",
+    dotColor: "#94a3b8",
+  },
+  processing: {
+    label: "Processing",
+    bgClass: "bg-amber-500/15",
+    textClass: "text-amber-400",
+    dotColor: "#f59e0b",
+  },
 };
 
-const avatarColors: Record<string, string> = {
-  violet: "linear-gradient(135deg,#7c3aed,#a78bfa)",
-  cyan: "linear-gradient(135deg,#0891b2,#22d3ee)",
-  emerald: "linear-gradient(135deg,#059669,#34d399)",
-  amber: "linear-gradient(135deg,#d97706,#fbbf24)",
-  pink: "linear-gradient(135deg,#db2777,#f472b6)",
-  blue: "linear-gradient(135deg,#2563eb,#60a5fa)",
-  orange: "linear-gradient(135deg,#ea580c,#fb923c)",
-  rose: "linear-gradient(135deg,#e11d48,#fb7185)",
+const avatarGradients: Record<string, string> = {
+  violet: "from-violet-700 to-violet-400",
+  cyan: "from-cyan-700 to-cyan-400",
+  emerald: "from-emerald-700 to-emerald-400",
+  amber: "from-amber-700 to-amber-400",
+  pink: "from-pink-700 to-pink-400",
+  blue: "from-blue-700 to-blue-400",
+  orange: "from-orange-700 to-orange-400",
+  rose: "from-rose-700 to-rose-400",
 };
 
 interface AgentStatusProps {
@@ -27,48 +42,40 @@ export default function AgentStatus({ limit }: AgentStatusProps) {
   return (
     <div className="space-y-2">
       {displayed.map((agent) => {
-        const st = statusConfig[agent.status];
+        const st = statusConfig[agent.status] ?? statusConfig.idle;
+        const grad = avatarGradients[agent.color] ?? "from-slate-700 to-slate-400";
         return (
-          <div key={agent.id}
-            className="flex items-center gap-3 p-3 rounded-xl transition-colors cursor-default"
-            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-
-            {/* Avatar */}
+          <div
+            key={agent.id}
+            className="flex items-center gap-3 p-3 rounded-xl cursor-default bg-surface-2 border border-edge"
+          >
             <div className="relative flex-shrink-0">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white"
-                style={{ background: avatarColors[agent.color] }}>
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${grad}`}
+              >
                 {agent.avatar}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                style={{
-                  background: st.dot,
-                  borderColor: "var(--surface-2)",
-                  boxShadow: `0 0 6px ${st.dot}`,
-                }} />
+              <span
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface-2"
+                style={{ background: st.dotColor, boxShadow: `0 0 6px ${st.dotColor}` }}
+              />
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>
-                  {agent.name}
-                </span>
-                <span className="text-xs px-1.5 py-0.5 rounded-md flex-shrink-0"
-                  style={{ background: st.color, color: st.dot }}>
+                <span className="text-sm font-semibold truncate text-ink">{agent.name}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-md flex-shrink-0 ${st.bgClass} ${st.textClass}`}>
                   {st.label}
                 </span>
               </div>
-              <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                {agent.task}
-              </p>
+              <p className="text-xs truncate text-ink-muted">{agent.task}</p>
             </div>
 
-            {/* Tasks count */}
             <div className="text-right flex-shrink-0 hidden sm:block">
-              <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                {agent.completedTasks.toLocaleString()}
+              <div className="text-sm font-semibold text-ink">
+                {agent.completedTasks.toLocaleString("en-US")}
               </div>
-              <div className="text-xs" style={{ color: "var(--text-muted)" }}>tasks</div>
+              <div className="text-xs text-ink-muted">tasks</div>
             </div>
           </div>
         );
