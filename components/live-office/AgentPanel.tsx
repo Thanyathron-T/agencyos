@@ -1,24 +1,26 @@
 "use client";
 
 import type { OfficeAgent } from "@/lib/officeData";
+import { thaiTasks } from "@/lib/chibiData";
+import ChibiSVG from "./ChibiSVG";
 import StatusBadge from "./StatusBadge";
 
-const gradients: Record<string, string> = {
-  violet: "from-violet-700 to-violet-500",
-  cyan: "from-cyan-700 to-cyan-500",
-  pink: "from-pink-700 to-pink-500",
-  amber: "from-amber-600 to-amber-400",
-  emerald: "from-emerald-700 to-emerald-500",
-  blue: "from-blue-700 to-blue-500",
+const zonePalette: Record<string, { hair: string; skin: string; accent: string; bg: string }> = {
+  "z-marketing": { hair: "#FFB7D5", skin: "#FFF0F5", accent: "text-pink-500",   bg: "bg-pink-50"   },
+  "z-content":   { hair: "#8ED7FF", skin: "#F0F8FF", accent: "text-sky-500",    bg: "bg-sky-50"    },
+  "z-design":    { hair: "#B794F4", skin: "#F5F0FF", accent: "text-violet-500", bg: "bg-violet-50" },
+  "z-ads":       { hair: "#FFE29A", skin: "#FFFBF0", accent: "text-amber-500",  bg: "bg-amber-50"  },
+  "z-support":   { hair: "#FFCBA4", skin: "#FFF5F0", accent: "text-orange-500", bg: "bg-orange-50" },
+  "z-ops":       { hair: "#A7C4F0", skin: "#F0F5FF", accent: "text-blue-500",   bg: "bg-blue-50"   },
 };
 
-const progressColors: Record<string, string> = {
-  violet: "from-violet-600 to-violet-400",
-  cyan: "from-cyan-600 to-cyan-400",
-  pink: "from-pink-600 to-pink-400",
-  amber: "from-amber-600 to-amber-400",
-  emerald: "from-emerald-600 to-emerald-400",
-  blue: "from-blue-600 to-blue-400",
+const progressColor: Record<string, string> = {
+  "z-marketing": "from-pink-400 to-rose-300",
+  "z-content":   "from-sky-400 to-cyan-300",
+  "z-design":    "from-violet-400 to-purple-300",
+  "z-ads":       "from-amber-400 to-yellow-300",
+  "z-support":   "from-orange-400 to-amber-300",
+  "z-ops":       "from-blue-400 to-indigo-300",
 };
 
 interface AgentPanelProps {
@@ -27,53 +29,57 @@ interface AgentPanelProps {
 }
 
 export default function AgentPanel({ agent, onClose }: AgentPanelProps) {
-  const grad = gradients[agent.colorKey] ?? gradients.violet;
-  const prog = progressColors[agent.colorKey] ?? progressColors.violet;
+  const p   = zonePalette[agent.zoneId] ?? zonePalette["z-ops"];
+  const pg  = progressColor[agent.zoneId] ?? "from-violet-400 to-purple-300";
+  const task = thaiTasks[agent.id] ?? agent.task;
 
   return (
-    <div className="rounded-2xl bg-surface border border-edge overflow-hidden">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-edge">
-        <span className="text-xs font-semibold text-ink-muted uppercase tracking-widest">Agent Details</span>
+    <div className="glass rounded-3xl overflow-hidden shadow-xl shadow-chibi-primary/10">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white/40 border-b border-chibi-primary/10">
+        <span className="text-[10px] font-bold text-chibi-muted uppercase tracking-widest">
+          รายละเอียด Agent
+        </span>
         <button
           onClick={onClose}
-          className="w-6 h-6 rounded-md flex items-center justify-center text-ink-muted hover:text-ink hover:bg-surface-2 transition-colors"
+          className="w-6 h-6 rounded-full flex items-center justify-center text-chibi-muted hover:text-chibi-ink hover:bg-white/60 transition-colors text-sm"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          ✕
         </button>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Agent identity */}
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white bg-gradient-to-br ${grad} flex-shrink-0`}
-          >
-            {agent.avatar}
+        {/* Identity */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <ChibiSVG
+            hairColor={p.hair}
+            skinColor={p.skin}
+            status={agent.status}
+            isTyping={agent.status === "working"}
+            floatClass="chibi-float"
+          />
+          <div className="text-center">
+            <h3 className="font-bold text-chibi-ink text-sm">{agent.name}</h3>
+            <p className="text-xs text-chibi-muted">{agent.role}</p>
           </div>
-          <div className="min-w-0">
-            <h3 className="font-bold text-ink text-sm">{agent.name}</h3>
-            <p className="text-xs text-ink-muted">{agent.role}</p>
-          </div>
+          <StatusBadge status={agent.status} size="md" />
         </div>
 
-        <StatusBadge status={agent.status} size="md" />
-
         {/* Current task */}
-        <div className="rounded-xl bg-surface-2 border border-edge p-3">
-          <div className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1.5">Current Task</div>
-          <p className="text-xs text-ink leading-relaxed">{agent.task}</p>
+        <div className={`rounded-2xl p-3 ${p.bg} border border-chibi-primary/10`}>
+          <div className="text-[10px] font-bold text-chibi-muted uppercase tracking-wider mb-1.5">
+            งานปัจจุบัน
+          </div>
+          <p className="text-xs text-chibi-ink leading-relaxed">{task}</p>
           {agent.progress > 0 && (
             <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-ink-muted mb-1">
-                <span>Progress</span>
-                <span className="font-semibold text-ink">{agent.progress}%</span>
+              <div className="flex justify-between text-[10px] text-chibi-muted mb-1">
+                <span>ความคืบหน้า</span>
+                <span className="font-bold text-chibi-ink">{agent.progress}%</span>
               </div>
-              <div className="h-1.5 rounded-full bg-edge overflow-hidden">
+              <div className="h-2 rounded-full bg-white/60 overflow-hidden">
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r ${prog} transition-all duration-500`}
+                  className={`h-full rounded-full bg-gradient-to-r ${pg} transition-all duration-500`}
                   style={{ width: `${agent.progress}%` }}
                 />
               </div>
@@ -81,24 +87,24 @@ export default function AgentPanel({ agent, onClose }: AgentPanelProps) {
           )}
         </div>
 
-        {/* Stats grid */}
+        {/* Stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg bg-surface-2 border border-edge p-3">
-            <div className="text-[10px] text-ink-muted mb-1">Tasks Done</div>
-            <div className="text-lg font-bold text-ink">{agent.completedTasks.toLocaleString("en-US")}</div>
+          <div className="glass-soft rounded-2xl p-3 text-center">
+            <div className="text-lg font-bold text-chibi-ink">
+              {agent.completedTasks.toLocaleString("en-US")}
+            </div>
+            <div className="text-[10px] text-chibi-muted mt-0.5">งานที่เสร็จ</div>
           </div>
-          <div className="rounded-lg bg-surface-2 border border-edge p-3">
-            <div className="text-[10px] text-ink-muted mb-1">Last Active</div>
-            <div className="text-xs font-semibold text-ink">{agent.lastActivity}</div>
+          <div className="glass-soft rounded-2xl p-3 text-center">
+            <div className="text-xs font-bold text-chibi-ink">{agent.lastActivity}</div>
+            <div className="text-[10px] text-chibi-muted mt-0.5">ใช้งานล่าสุด</div>
           </div>
         </div>
 
         {/* Zone tag */}
-        <div className="flex items-center gap-2 text-xs text-ink-muted pt-1 border-t border-edge">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-          <span>Zone ID: {agent.zoneId.replace("z-", "")}</span>
+        <div className={`flex items-center justify-center gap-1.5 text-[10px] ${p.accent} pt-1`}>
+          <span>📍</span>
+          <span>{agent.zoneId.replace("z-", "").toUpperCase()} ZONE</span>
         </div>
       </div>
     </div>

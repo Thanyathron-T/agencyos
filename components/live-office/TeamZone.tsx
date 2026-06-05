@@ -8,20 +8,24 @@ interface TeamZoneProps {
   zone: OfficeZone;
   agents: OfficeAgent[];
   selectedAgentId: string | null;
+  bubbles: Record<string, string>;
   onAgentSelect: (id: string) => void;
 }
 
-export default function TeamZone({ zone, agents, selectedAgentId, onAgentSelect }: TeamZoneProps) {
+export default function TeamZone({
+  zone, agents, selectedAgentId, bubbles, onAgentSelect,
+}: TeamZoneProps) {
   const activeCount = agents.filter((a) => a.status !== "idle").length;
 
   return (
     <OfficeRoom zone={zone} activeCount={activeCount} totalCount={agents.length}>
-      {agents.map((agent) => (
+      {agents.map((agent, i) => (
         <AgentAvatar
           key={agent.id}
           agent={agent}
-          zoneColorKey={zone.colorKey}
+          index={i}
           isSelected={selectedAgentId === agent.id}
+          bubble={bubbles[agent.id] ?? null}
           onSelect={onAgentSelect}
         />
       ))}

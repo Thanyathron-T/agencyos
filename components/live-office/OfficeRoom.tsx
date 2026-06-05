@@ -1,41 +1,62 @@
 import type { OfficeZone } from "@/lib/officeData";
 
-const zoneStyles: Record<string, { topBar: string; headerText: string; countBadge: string; border: string }> = {
-  violet: {
-    topBar: "bg-violet-600",
-    headerText: "text-violet-400",
-    countBadge: "bg-violet-600/20 text-violet-400 border-violet-600/30",
-    border: "border-violet-600/20",
+const zoneTheme: Record<string, {
+  bg: string; border: string; header: string;
+  text: string; badge: string; emoji: string; deco: string;
+}> = {
+  "z-marketing": {
+    bg: "from-pink-50/90 to-rose-50/70",
+    border: "border-pink-200/60",
+    header: "bg-pink-100/70",
+    text: "text-pink-600",
+    badge: "bg-pink-200/70 text-pink-700",
+    emoji: "💖",
+    deco: "🌸 ✨",
   },
-  cyan: {
-    topBar: "bg-cyan-500",
-    headerText: "text-cyan-400",
-    countBadge: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
-    border: "border-cyan-500/20",
+  "z-content": {
+    bg: "from-sky-50/90 to-cyan-50/70",
+    border: "border-sky-200/60",
+    header: "bg-sky-100/70",
+    text: "text-sky-600",
+    badge: "bg-sky-200/70 text-sky-700",
+    emoji: "🩵",
+    deco: "📝 ☕",
   },
-  pink: {
-    topBar: "bg-pink-500",
-    headerText: "text-pink-400",
-    countBadge: "bg-pink-500/20 text-pink-400 border-pink-500/30",
-    border: "border-pink-500/20",
+  "z-design": {
+    bg: "from-violet-50/90 to-purple-50/70",
+    border: "border-violet-200/60",
+    header: "bg-violet-100/70",
+    text: "text-violet-600",
+    badge: "bg-violet-200/70 text-violet-700",
+    emoji: "💜",
+    deco: "🎨 ✏️",
   },
-  amber: {
-    topBar: "bg-amber-500",
-    headerText: "text-amber-400",
-    countBadge: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    border: "border-amber-500/20",
+  "z-ads": {
+    bg: "from-amber-50/90 to-yellow-50/70",
+    border: "border-amber-200/60",
+    header: "bg-amber-100/70",
+    text: "text-amber-600",
+    badge: "bg-amber-200/70 text-amber-700",
+    emoji: "💛",
+    deco: "📈 💰",
   },
-  emerald: {
-    topBar: "bg-emerald-500",
-    headerText: "text-emerald-400",
-    countBadge: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    border: "border-emerald-500/20",
+  "z-support": {
+    bg: "from-orange-50/90 to-amber-50/70",
+    border: "border-orange-200/60",
+    header: "bg-orange-100/70",
+    text: "text-orange-500",
+    badge: "bg-orange-200/70 text-orange-700",
+    emoji: "🧡",
+    deco: "🌱 💬",
   },
-  blue: {
-    topBar: "bg-blue-500",
-    headerText: "text-blue-400",
-    countBadge: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    border: "border-blue-500/20",
+  "z-ops": {
+    bg: "from-blue-50/90 to-indigo-50/70",
+    border: "border-blue-200/60",
+    header: "bg-blue-100/70",
+    text: "text-blue-600",
+    badge: "bg-blue-200/70 text-blue-700",
+    emoji: "💙",
+    deco: "💻 🔧",
   },
 };
 
@@ -47,26 +68,28 @@ interface OfficeRoomProps {
 }
 
 export default function OfficeRoom({ zone, activeCount, totalCount, children }: OfficeRoomProps) {
-  const s = zoneStyles[zone.colorKey] ?? zoneStyles.violet;
+  const t = zoneTheme[zone.id] ?? zoneTheme["z-ops"];
 
   return (
-    <div className={`rounded-xl overflow-hidden border ${s.border} bg-surface flex flex-col`}>
-      {/* Top colour bar */}
-      <div className={`h-0.5 w-full ${s.topBar}`} />
-
+    <div
+      className={`rounded-2xl overflow-hidden border ${t.border} bg-gradient-to-br ${t.bg} backdrop-blur-sm shadow-sm`}
+    >
       {/* Zone header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-edge">
-        <div>
-          <h3 className={`text-xs font-semibold ${s.headerText}`}>{zone.name}</h3>
-          <p className="text-[10px] text-ink-muted mt-0.5">{zone.description}</p>
+      <div className={`flex items-center justify-between px-3 py-2.5 ${t.header} border-b ${t.border}`}>
+        <div className="flex items-center gap-1.5">
+          <span className="text-base">{t.emoji}</span>
+          <div>
+            <h3 className={`text-[11px] font-bold ${t.text}`}>{zone.name}</h3>
+            <p className="text-[9px] text-chibi-muted">{t.deco}</p>
+          </div>
         </div>
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${s.countBadge}`}>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${t.badge}`}>
           {activeCount}/{totalCount}
         </span>
       </div>
 
-      {/* Dot-grid floor */}
-      <div className="p-3 bg-dots flex-1">
+      {/* Floor with dot pattern */}
+      <div className="p-2.5 bg-dots-pastel">
         <div className="grid grid-cols-2 gap-2">{children}</div>
       </div>
     </div>
