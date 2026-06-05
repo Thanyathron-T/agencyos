@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { officeZones, officeAgents } from "@/lib/officeData";
+import { officeAgents } from "@/lib/officeData";
 import { thaiConversations } from "@/lib/chibiData";
-import OfficeHeader from "./OfficeHeader";
-import TeamZone from "./TeamZone";
-import AgentPanel from "./AgentPanel";
-import ActivityFeed from "./ActivityFeed";
+import MiniKPI from "./MiniKPI";
+import OfficeScene from "./OfficeScene";
+import FloatingChat from "./FloatingChat";
 import TodaysMission from "./TodaysMission";
 import TeamMood from "./TeamMood";
 import PetAssistant from "./PetAssistant";
@@ -16,26 +15,25 @@ export default function LiveOffice() {
   const [bubbles, setBubbles] = useState<Record<string, string>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* Real-time speech bubbles: pick random agent every 3-8 s */
+  /* Real-time Thai speech bubbles */
   useEffect(() => {
     const activeAgents = officeAgents.filter((a) => a.status !== "idle");
 
     function schedule() {
-      const delay = 3000 + Math.random() * 5000;
+      const delay = 2800 + Math.random() * 4800;
       timerRef.current = setTimeout(() => {
         const agent = activeAgents[Math.floor(Math.random() * activeAgents.length)];
         const pool  = thaiConversations[agent.zoneId] ?? [];
         const msg   = pool[Math.floor(Math.random() * pool.length)];
         if (msg) {
           setBubbles((prev) => ({ ...prev, [agent.id]: msg }));
-          // Clear after 3.5 s
           setTimeout(() => {
             setBubbles((prev) => {
               const next = { ...prev };
               delete next[agent.id];
               return next;
             });
-          }, 3500);
+          }, 3200);
         }
         schedule();
       }, delay);
@@ -46,7 +44,7 @@ export default function LiveOffice() {
   }, []);
 
   const selectedAgent = selectedAgentId
-    ? officeAgents.find((a) => a.id === selectedAgentId) ?? null
+    ? (officeAgents.find((a) => a.id === selectedAgentId) ?? null)
     : null;
 
   function handleSelect(id: string) {
@@ -55,61 +53,39 @@ export default function LiveOffice() {
 
   return (
     <div>
-      <OfficeHeader />
+      {/* ── Top KPI strip ── */}
+      <MiniKPI />
 
-      <div className="flex gap-5 items-start">
-        {/* ── Office grid ── */}
+      {/* ── Main content ── */}
+      <div className="flex gap-4 items-start">
+
+        {/* ── Office scene (6 rooms) ── */}
         <div className="flex-1 min-w-0">
-          <div className="grid grid-cols-3 gap-3">
-            {officeZones.map((zone) => (
-              <TeamZone
-                key={zone.id}
-                zone={zone}
-                agents={officeAgents.filter((a) => a.zoneId === zone.id)}
-                selectedAgentId={selectedAgentId}
-                bubbles={bubbles}
-                onAgentSelect={handleSelect}
-              />
-            ))}
-          </div>
+          <OfficeScene
+            bubbles={bubbles}
+            selectedAgentId={selectedAgentId}
+            onAgentSelect={handleSelect}
+          />
 
-          {/* Status legend */}
-          <div className="mt-3 flex flex-wrap items-center gap-4 px-1">
-            {[
-              { emoji: "🟢", label: "กำลังทำงาน" },
-              { emoji: "🟡", label: "กำลังรีวิว" },
-              { emoji: "🟣", label: "รออนุมัติ"  },
-              { emoji: "🔵", label: "กำลังเผยแพร่" },
-              { emoji: "⚪", label: "พัก"        },
-            ].map((s) => (
-              <div key={s.label} className="flex items-center gap-1">
-                <span className="text-xs">{s.emoji}</span>
-                <span className="text-[10px] text-chibi-muted">{s.label}</span>
-              </div>
-            ))}
-            <span className="ml-auto text-[10px] text-chibi-muted">
-              คลิก Avatar เพื่อดูรายละเอียด · Hover เพื่อ Preview
-            </span>
-          </div>
+          {/* ── Hint ── */}
+          <p className="mt-2 text-center text-[10px] text-chibi-muted">
+            คลิกตัวละครเพื่อดูรายละเอียด · น้องจะพูดเองโดยอัตโนมัติ 💬
+          </p>
 
           {/* ── Bottom widgets ── */}
-          <div className="grid grid-cols-3 gap-3 mt-5">
+          <div className="grid grid-cols-3 gap-3 mt-4">
             <TodaysMission />
             <TeamMood />
             <PetAssistant />
           </div>
         </div>
 
-        {/* ── Side panel (288 px) ── */}
+        {/* ── Floating chat / agent panel ── */}
         <div className="w-72 flex-shrink-0 sticky top-4">
-          {selectedAgent ? (
-            <AgentPanel
-              agent={selectedAgent}
-              onClose={() => setSelectedAgentId(null)}
-            />
-          ) : (
-            <ActivityFeed />
-          )}
+          <FloatingChat
+            selectedAgent={selectedAgent}
+            onClose={() => setSelectedAgentId(null)}
+          />
         </div>
       </div>
     </div>
