@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Blockout</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #050505; font-family: monospace; }
+  .page { padding: 32px; }
+  .label-row { display: flex; align-items: center; gap: 20px; margin-bottom: 12px; }
+  .label { color: #555; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; }
+  .btn { background: none; border: 1px solid #333; color: #555; font-size: 9px; padding: 3px 10px; cursor: pointer; letter-spacing: 0.15em; font-family: monospace; }
+  .btn:hover { border-color: #666; color: #888; }
+  .canvas-wrap { border: 1px solid #1A1A1A; display: inline-block; margin-bottom: 56px; }
+  .notes { color: #3A3A3A; font-size: 10px; letter-spacing: 0.12em; line-height: 2.2; max-width: 900px; margin-top: 16px; }
+  .header { color: #444; font-size: 10px; letter-spacing: 0.18em; margin-bottom: 28px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">BLOCKOUT V3 / 1600 × 1000 / ISOMETRIC / FURNITURE-DEFINED / W=17 D=17</div>
+
+  <div class="label-row">
+    <span class="label">blockout_v3.png</span>
+    <button class="btn" onclick="savePNG('svg-blockout','blockout_v3.png')">SAVE PNG</button>
+  </div>
+  <div class="canvas-wrap" id="wrap-blockout"></div>
+
+  <div class="label-row">
+    <span class="label">wireframe_v3.png</span>
+    <button class="btn" onclick="savePNG('svg-wireframe','wireframe_v3.png')">SAVE PNG</button>
+  </div>
+  <div class="canvas-wrap" id="wrap-wireframe"></div>
+
+  <div class="label-row">
+    <span class="label">massing_v3.png</span>
+    <button class="btn" onclick="savePNG('svg-massing','massing_v3.png')">SAVE PNG</button>
+  </div>
+  <div class="canvas-wrap" id="wrap-massing"></div>
+
+  <div class="notes" id="notes"></div>
+</div>
+
+<script>
+/* ═════════════════════════════════════════════
+   PROJECTION — unchanged from v2
+═════════════════════════════════════════════ */
+const T  = 38;
+const CX = 676;
+const CY = 221;
+const VW = 1600;
+const VH = 1000;
+
+function iso(wx, wz, wy = 0) {
+  return {
+    x: CX + (wx - wz) * T,
+    y: CY + (wx + wz) * T * 0.5 - wy * T
+  };
+}
+function pts(arr) {
+  return arr.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+}
+
+/* ═════════════════════════════════════════════
+   V3 DATA
+   Furniture-defined zones. No closed boxes.
+   Rooms = L-shaped mass fragments (2 pieces each).
+   NESTING: Command inside Meeting. Creative wraps Meeting.
+            Focus embedded centre. Analytics hidden behind Focus.
+   4 layers: bg → pieces → partitions → furniture → circles.
+═════════════════════════════════════════════ */
+
+const PIECES = [
+  { id:'creative',  x:0,   z:0,   w:7,   d:4,   h:4    },
+  { id:'creative',  x:0,   z:4,   w:4.5, d:3.5, h:3.5  },
+  { id:'meeting',   x:4,   z:0,   w:13,  d:4.5, h:4.5  },
+  { id:'meeting',   x:8.5, z:4.5, w:6,   d:3,   h:3.8  },
+  { id:'command',   x:7,   z:3.5, w:6,   d:3.5, h:3.5  },
+  { id:'command',   x:9.5, z:7,   w:4,   d:2.5, h:3    },
+  { id:'entry',     x:0,   z:7,   w:3.5, d:4,   h:1.5  },
+  { id:'entry',     x:0,   z:11,  w:4,   d:3.5, h:1.5  },
+  { id:'focus',     x:6,   z:7.5, w:5.5, d:3.5, h:3,   focal:true },
+  { id:'focus',     x:8,   z:11,  w:3.5, d:2,   h:2.5, focal:true },
+  { id:'analytics', x:4.5, z:10.5,w:5.5, d:3,   h:2    },
+  { id:'analytics', x:5.5, z:13.5,w:3.5, d:2.5, h:1.8  },
+  { id:'design',    x:12,  z:6.5, w:5,   d:5,   h:3.5  },
+  { id:'design',    x:13.5,z:11.5,w:3.5, d:3.5, h:3    },
+];
+
+const PARTITIONS = [
+  { x:4,   z:0,   w:9.5, d:0.3, h:3.8 },
+  { x:0,   z:0,   w:0.3, d:5.5, h:3.2 },
+  { x:7,   z:3.5, w:0.3, d:3,   h:2   },
+  { x:11.5,z:7.5, w:0.3, d:3.5, h:1.6 },
+  { x:4.5, z:10.5,w:5,   d:0.3, h:1.4 },
+  { x:0,   z:7,   w:0.3, d:4,   h:1.8 },
+];
+
+const FURNITURE = [
+  { x:7.5, z:1.2, w:4.5, d:2.8, h:0.8  },
+  { x:14,  z:0.4, w:2.5, d:0.4, h:1.8  },
+  { x:9.5, z:5,   w:2.8, d:2,   h:0.6  },
+  { x:0.4, z:0.6, w:2.4, d:1.7, h:0.6  },
+  { x:3,   z:0.6, w:2.4, d:1.7, h:0.6  },
+  { x:0.4, z:2.5, w:2.4, d:1.7, h:0.6  },
+  { x:7.2, z:3.8, w:2.4, d:1.8, h:0.6  },
+  { x:9.8, z:3.8, w:2.2, d:1.8, h:0.6  },
+  { x:6.5, z:8.2, w:3.5, d:2,   h:0.5  },
+  { x:4.8, z:11,  w:3.8, d:1.4, h:0.6  },
+  { x:5,   z:13.5,w:3,   d:1.5, h:1.3  },
+  { x:0.4, z:8.2, w:2,   d:2,   h:0.6  },
+  { x:12.3,z:7,   w:2.5, d:1.8, h:0.6  },
+  { x:12.3,z:8.9, w:2.5, d:1.8, h:0.6  },
+  { x:12.3,z:12,  w:2.5, d:1.8, h:0.6  },
+];
+
+const SOFA = { x:6.5, z:8.2, w:3.5, d:2, h:0.5 };
+
+const CIRCLES = [
+  { x:9.5, z:1.8, h:4.5 }, { x:12.5,z:1.8, h:4.5 }, { x:15,  z:5,   h:4.5 },
+  { x:2,   z:1.5, h:4   }, { x:5,   z:3,   h:4   },
+  { x:8.5, z:4.5, h:3.5 },
+  { x:8,   z:9.2, h:3   },
+  { x:6.5, z:12,  h:2   },
+];
+
+const DRAW_ORDER = [...PIECES].sort(
+  (a, b) => (a.x + a.w/2 + a.z + a.d/2) - (b.x + b.w/2 + b.z + b.d/2)
+);
+
+/* ═════════════════════════════════════════════
+   FACE POLYS
+═════════════════════════════════════════════ */
+function fTop(x,z,w,d,h) {
+  return [iso(x,z,h),iso(x+w,z,h),iso(x+w,z+d,h),iso(x,z+d,h)];
+}
+function fLeft(x,z,d,h) {
+  return [iso(x,z,0),iso(x,z+d,0),iso(x,z+d,h),iso(x,z,h)];
+}
+function fRight(x,z,w,h) {
+  return [iso(x,z,0),iso(x+w,z,0),iso(x+w,z,h),iso(x,z,h)];
+}
+
+/* ═════════════════════════════════════════════
+   PALETTES
+═════════════════════════════════════════════ */
+const BLOCKOUT_PAL = {
+  entry:     {top:'#484848',left:'#282828',right:'#353535'},
+  creative:  {top:'#787878',left:'#484848',right:'#5C5C5C'},
+  command:   {top:'#6E6E6E',left:'#424242',right:'#545454'},
+  meeting:   {top:'#7E7E7E',left:'#4E4E4E',right:'#606060'},
+  focus:     {top:'#939393',left:'#5A5A5A',right:'#707070'},
+  analytics: {top:'#585858',left:'#353535',right:'#444444'},
+  design:    {top:'#686868',left:'#3E3E3E',right:'#525252'},
+};
+
+function massColor(h, face) {
+  const t = Math.min(1, (h - 1.5) / 2.5);
+  const hue = 210 + t * 25;
+  const sat = 25 + t * 15;
+  let lig = 12 + t * 38;
+  if (face === 'top')   lig += 12;
+  if (face === 'right') lig -= 6;
+  if (face === 'left')  lig -= 18;
+  return `hsl(${hue},${sat}%,${Math.max(2, lig)}%)`;
+}
+
+/* ═════════════════════════════════════════════
+   SVG BUILDER
+═════════════════════════════════════════════ */
+const NS = 'http://www.w3.org/2000/svg';
+
+function el(tag, attrs = {}, children = []) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  for (const c of children) if (c) e.appendChild(c);
+  return e;
+}
+function poly(points, fill, stroke = 'none', sw = '0.5') {
+  return el('polygon', { points, fill, stroke, 'stroke-width': sw });
+}
+function lineSeg(x1, y1, x2, y2, stroke, sw = '1') {
+  return el('line', { x1, y1, x2, y2, stroke, 'stroke-width': sw });
+}
+
+function buildScene(mode) {
+  const bg = mode === 'blockout' ? '#111111' : mode === 'wireframe' ? '#0A0A0A' : '#06090F';
+  const svg = el('svg', {
+    viewBox: `0 0 ${VW} ${VH}`, width: VW, height: VH,
+    xmlns: NS, style: `background:${bg}`,
+  });
+
+  /* floor — barely visible */
+  if (mode !== 'wireframe') {
+    svg.appendChild(poly(pts([iso(-0.5,-0.5),iso(17.5,-0.5),iso(17.5,17.5),iso(-0.5,17.5)]),
+      mode==='massing'?'#050A14':'#101010','none','0'));
+  } else {
+    svg.appendChild(poly(pts([iso(0,0),iso(17,0),iso(17,17),iso(0,17)]),
+      'none','#1A1A1A','0.5'));
+  }
+
+  /* pieces */
+  for (const piece of DRAW_ORDER) {
+    const { id, x, z, w, d, h, focal } = piece;
+    const topF  = fTop(x,z,w,d,h);
+    const leftF = fLeft(x,z,d,h);
+    const rightF= fRight(x,z,w,h);
+    if (mode === 'wireframe') {
+      const sc = focal ? '#AAAAAA' : '#4A4A4A';
+      const sw = focal ? '1.5' : '0.9';
+      svg.appendChild(poly(pts(leftF), 'none', sc, sw));
+      svg.appendChild(poly(pts(rightF),'none', sc, sw));
+      svg.appendChild(poly(pts(topF),  'none', focal?'#CCCCCC':'#666666', sw));
+      [[iso(x,z,0),iso(x,z,h)],[iso(x+w,z,0),iso(x+w,z,h)],[iso(x,z+d,0),iso(x,z+d,h)]].forEach(([a,b])=>{
+        svg.appendChild(lineSeg(a.x,a.y,b.x,b.y,sc,sw));
+      });
+    } else {
+      const pal = mode==='massing'
+        ? {top:massColor(h,'top'),left:massColor(h,'left'),right:massColor(h,'right')}
+        : (BLOCKOUT_PAL[id]||BLOCKOUT_PAL.design);
+      const sk = mode==='blockout'?'#0C0C0C':'none';
+      svg.appendChild(poly(pts(leftF), pal.left, sk,'0.5'));
+      svg.appendChild(poly(pts(rightF),pal.right,sk,'0.5'));
+      svg.appendChild(poly(pts(topF),  pal.top,  sk,'0.5'));
+    }
+  }
+
+  /* partitions */
+  for (const p of PARTITIONS) {
+    const pt=fTop(p.x,p.z,p.w,p.d,p.h), pl=fLeft(p.x,p.z,p.d,p.h), pr=fRight(p.x,p.z,p.w,p.h);
+    if (mode==='wireframe') {
+      svg.appendChild(poly(pts(pl),'none','#3A3A3A','0.8'));
+      svg.appendChild(poly(pts(pr),'none','#3A3A3A','0.8'));
+      svg.appendChild(poly(pts(pt),'none','#4A4A4A','0.8'));
+    } else {
+      const ptop=mode==='massing'?'hsl(215,12%,22%)':'#505050';
+      const plft=mode==='massing'?'hsl(215,12%,12%)':'#303030';
+      const prgt=mode==='massing'?'hsl(215,12%,16%)':'#3C3C3C';
+      const sk=mode==='blockout'?'#0C0C0C':'none';
+      svg.appendChild(poly(pts(pl),plft,sk,'0.4'));
+      svg.appendChild(poly(pts(pr),prgt,sk,'0.4'));
+      svg.appendChild(poly(pts(pt),ptop,sk,'0.4'));
+    }
+  }
+
+  /* furniture */
+  for (const f of FURNITURE) {
+    const ft=fTop(f.x,f.z,f.w,f.d,f.h), fl=fLeft(f.x,f.z,f.d,f.h), fr=fRight(f.x,f.z,f.w,f.h);
+    if (mode==='wireframe') {
+      svg.appendChild(poly(pts(fl),'none','#2E2E2E','0.7'));
+      svg.appendChild(poly(pts(fr),'none','#2E2E2E','0.7'));
+      svg.appendChild(poly(pts(ft),'none','#3C3C3C','0.7'));
+    } else {
+      const ftop=mode==='massing'?'hsl(215,20%,18%)':'#404040';
+      const flt =mode==='massing'?'hsl(215,20%,8%)' :'#242424';
+      const frt =mode==='massing'?'hsl(215,20%,12%)':'#303030';
+      const fsk =mode==='blockout'?'#0C0C0C':'none';
+      svg.appendChild(poly(pts(fl),flt, fsk,'0.4'));
+      svg.appendChild(poly(pts(fr),frt, fsk,'0.4'));
+      svg.appendChild(poly(pts(ft),ftop,fsk,'0.4'));
+    }
+  }
+
+  /* focal sofa */
+  {
+    const {x:sx,z:sz,w:sw2,d:sd,h:sh}=SOFA;
+    const st=fTop(sx,sz,sw2,sd,sh), sl=fLeft(sx,sz,sd,sh), sr=fRight(sx,sz,sw2,sh);
+    if (mode==='wireframe') {
+      [sl,sr,st].forEach(f=>{
+        const e=poly(pts(f),'none','#999','1.5');
+        e.setAttribute('stroke-dasharray','4 2');
+        svg.appendChild(e);
+      });
+    } else {
+      const sk=mode==='blockout'?'#0C0C0C':'none';
+      svg.appendChild(poly(pts(sl),mode==='massing'?'hsl(38,40%,16%)':'#909090',sk,'0.5'));
+      svg.appendChild(poly(pts(sr),mode==='massing'?'hsl(38,40%,22%)':'#A0A0A0',sk,'0.5'));
+      svg.appendChild(poly(pts(st),mode==='massing'?'hsl(38,40%,32%)':'#BEBEBE',sk,'0.5'));
+    }
+  }
+
+  /* circles */
+  const cc =mode==='wireframe'?'#666':mode==='massing'?'#1A2E50':'#B8B8B8';
+  const csk=mode==='wireframe'?'#444':'#080808';
+  for (const c of CIRCLES) {
+    const p=iso(c.x,c.z,c.h+0.3);
+    svg.appendChild(el('circle',{
+      cx:p.x.toFixed(1),cy:p.y.toFixed(1),
+      r:'7',fill:cc,stroke:csk,'stroke-width':'0.8',opacity:'0.9'
+    }));
+  }
+
+  return svg;
+}
+
+/* ═════════════════════════════════════════════
+   PNG SAVE
+═════════════════════════════════════════════ */
+function savePNG(id, filename) {
+  const svgEl = document.getElementById(id);
+  if (!svgEl) return;
+  const s = new XMLSerializer().serializeToString(svgEl);
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = VW; c.height = VH;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.download = filename;
+    a.href = c.toDataURL('image/png');
+    a.click();
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+}
+
+/* ═════════════════════════════════════════════
+   INIT
+═════════════════════════════════════════════ */
+const VIEWS = [
+  { id:'svg-blockout',  wrap:'wrap-blockout',  mode:'blockout'  },
+  { id:'svg-wireframe', wrap:'wrap-wireframe',  mode:'wireframe' },
+  { id:'svg-massing',   wrap:'wrap-massing',    mode:'massing'   },
+];
+
+for (const v of VIEWS) {
+  const svg = buildScene(v.mode);
+  svg.id = v.id;
+  document.getElementById(v.wrap).appendChild(svg);
+}
+
+document.getElementById('notes').innerHTML = `
+  <div>V3 — FURNITURE-DEFINED ZONES · 14 mass pieces · 6 partitions · 15 furniture blocks · 8 circles</div>
+  <div>CAMERA  T=${T}px/unit · CX=${CX} CY=${CY} · right-facing isometric · W=17 D=17</div>
+`;
+</script>
+</body>
+</html>

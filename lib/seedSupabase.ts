@@ -40,12 +40,25 @@ export async function seedIfNeeded() {
   if (seeded) return
   seeded = true
 
-  const { count } = await supabase
+  const { count, error: countErr } = await supabase
     .from('agents')
     .select('*', { count: 'exact', head: true })
 
-  if ((count ?? 0) > 0) return
+  if (countErr) {
+    console.error('[seed] agents table query failed:', countErr.message, '— run SQL schema first')
+    return
+  }
 
-  await supabase.from('agents').insert(AGENTS)
-  await supabase.from('tasks').insert(TASKS)
+  if ((count ?? 0) > 0) {
+    console.log('[seed] already seeded, skipping')
+    return
+  }
+
+  const { error: agentErr } = await supabase.from('agents').insert(AGENTS)
+  if (agentErr) console.error('[seed] agents insert failed:', agentErr.message)
+
+  const { error: taskErr } = await supabase.from('tasks').insert(TASKS)
+  if (taskErr) console.error('[seed] tasks insert failed:', taskErr.message)
+
+  if (!agentErr && !taskErr) console.log('[seed] seeded 13 agents + 10 tasks')
 }
