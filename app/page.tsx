@@ -144,10 +144,15 @@ function ChatPanel() {
     setChatLog(prev => [...prev, userMsg]);
     setLoading(true);
     try {
+      // Build history for context (last 10 messages)
+      const history = chatLog.slice(-10).map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
       const res = await fetch("/api/chat-agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, history }),
       });
       const data = await res.json();
       const reply = data.reply ?? data.output ?? data.message ?? (data.success ? "✅ รับเรื่องแล้ว" : "❌ " + (data.error ?? "เกิดข้อผิดพลาด"));
