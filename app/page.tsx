@@ -32,15 +32,15 @@ const STATUS_COUNTS = {
 };
 
 /* ─────────────────────────────────────────────────────────────
-   ZONE CONFIG  — positions measured against the image
+   ZONE CONFIG  — fine-tuned to pastel chibi image
 ───────────────────────────────────────────────────────────── */
 const ZONES = [
-  { id: "z-marketing", label: "Marketing",  emoji: "🩷", top: "10%", left: "3%",  width: "32%", height: "42%", color: "#ffb7d5", glow: "rgba(255,183,213,0.45)" },
-  { id: "z-content",   label: "Content",    emoji: "💙", top: "10%", left: "34%", width: "24%", height: "42%", color: "#8ed7ff", glow: "rgba(142,215,255,0.45)" },
-  { id: "z-design",    label: "Design",     emoji: "💜", top: "10%", left: "58%", width: "39%", height: "42%", color: "#c4a8ff", glow: "rgba(196,168,255,0.45)" },
-  { id: "z-ads",       label: "Ads",        emoji: "💛", top: "52%", left: "3%",  width: "30%", height: "45%", color: "#ffe29a", glow: "rgba(255,226,154,0.45)" },
-  { id: "z-support",   label: "Support",    emoji: "🧡", top: "52%", left: "32%", width: "28%", height: "45%", color: "#ffcba4", glow: "rgba(255,203,164,0.45)" },
-  { id: "z-ops",       label: "Operations", emoji: "🩵", top: "52%", left: "59%", width: "38%", height: "45%", color: "#a7f3d0", glow: "rgba(167,243,208,0.45)" },
+  { id: "z-marketing", label: "Marketing",  emoji: "🩷", top: "8%",  left: "2%",  width: "33%", height: "44%", color: "#ffb7d5", glow: "rgba(255,183,213,0.45)" },
+  { id: "z-content",   label: "Content",    emoji: "💙", top: "8%",  left: "34%", width: "25%", height: "44%", color: "#8ed7ff", glow: "rgba(142,215,255,0.45)" },
+  { id: "z-design",    label: "Design",     emoji: "💜", top: "8%",  left: "58%", width: "40%", height: "44%", color: "#c4a8ff", glow: "rgba(196,168,255,0.45)" },
+  { id: "z-ads",       label: "Ads",        emoji: "💛", top: "51%", left: "2%",  width: "31%", height: "46%", color: "#ffe29a", glow: "rgba(255,226,154,0.45)" },
+  { id: "z-support",   label: "Support",    emoji: "🧡", top: "51%", left: "32%", width: "29%", height: "46%", color: "#ffcba4", glow: "rgba(255,203,164,0.45)" },
+  { id: "z-ops",       label: "Operations", emoji: "🩵", top: "51%", left: "60%", width: "38%", height: "46%", color: "#a7f3d0", glow: "rgba(167,243,208,0.45)" },
 ];
 
 /* ─────────────────────────────────────────────────────────────
@@ -127,8 +127,8 @@ const COLOR_MAP: Record<string, string> = {
 function ChatPanel() {
   return (
     <div
-      className="flex flex-col shrink-0 rounded-2xl overflow-hidden"
-      style={{ width: 240, background: "rgba(10,10,20,0.97)", border: "1px solid rgba(255,255,255,0.07)" }}
+      className="flex flex-col rounded-2xl overflow-hidden"
+      style={{ width: "100%", height: "calc(100vh - 40px)", background: "rgba(10,10,20,0.97)", border: "1px solid rgba(255,255,255,0.07)" }}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 shrink-0">
@@ -139,7 +139,7 @@ function ChatPanel() {
       </div>
 
       {/* Feed */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3" style={{ maxHeight: "calc(100vh - 160px)" }}>
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         {officeActivityFeed.map(ev => (
           <div key={ev.id} className="flex gap-2 items-start">
             <div
@@ -194,7 +194,7 @@ function BottomPanels() {
     <div className="grid grid-cols-3 gap-3">
 
       {/* Panel 1 — Tasks */}
-      <div className="bg-white rounded-2xl shadow-sm border border-pink-100 p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-pink-100 p-4" style={{ minHeight: 180 }}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold text-gray-800">🎯 ภารกิจวันนี้</span>
           <span className="text-xs font-semibold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full">
@@ -226,7 +226,7 @@ function BottomPanels() {
       </div>
 
       {/* Panel 2 — Team Mood */}
-      <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-4" style={{ minHeight: 180 }}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold text-gray-800">🌈 อารมณ์ทีมวันนี้</span>
           <span className="text-xs text-gray-500">😊</span>
@@ -260,7 +260,7 @@ function BottomPanels() {
       </div>
 
       {/* Panel 3 — Agent Status */}
-      <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-4" style={{ minHeight: 180 }}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold text-gray-800">🤖 สถานะน้อง</span>
         </div>
@@ -296,26 +296,23 @@ export default function LiveOfficePage() {
   }
 
   return (
-    <div className="-m-8 flex" style={{ height: "100vh", background: "#fdf4ff", overflow: "hidden" }}>
+    /* min-width 900px so content never collapses below readable size */
+    <div className="-m-8 flex" style={{ minHeight: "100vh", minWidth: 900, background: "#fdf4ff" }}>
 
       {/* ── MAIN CONTENT ──────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">Live Office</h1>
-              <span className="inline-flex items-center gap-1.5 bg-pink-100 text-pink-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
-                Real-time
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mt-0.5">ศูนย์บัญชาการ AI Marketing ของเรา ✨</p>
-          </div>
+        <div className="flex items-center gap-3 px-6 pt-5 pb-3 shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900">Live Office</h1>
+          <span className="inline-flex items-center gap-1.5 bg-pink-100 text-pink-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+            Real-time
+          </span>
+          <p className="text-sm text-gray-400 ml-2 hidden lg:block">ศูนย์บัญชาการ AI Marketing ของเรา ✨</p>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats bar — 4 equal cards */}
         <div className="grid grid-cols-4 gap-3 px-6 pb-3 shrink-0">
           <StatCard emoji="🤖" border="border-pink-100"   bg="bg-pink-50"   accent="text-pink-500"
             value={`${stats.online}`} suffix={`/${stats.total}`} label="น้อง AI ออนไลน์" sub="กำลังทำงาน" />
@@ -328,9 +325,8 @@ export default function LiveOfficePage() {
             sub={`${companyHealth.mrrChange} จากเดือนที่แล้ว`} />
         </div>
 
-        {/* Office image + zone overlays */}
-        <div className="relative overflow-hidden mx-6 rounded-3xl shadow-xl" style={{ height: 380 }}>
-          {/* Image — tries pastel first, falls back to existing */}
+        {/* Office image + zone overlays — flex-1 so it fills remaining height */}
+        <div className="relative overflow-hidden mx-6 rounded-3xl shadow-xl" style={{ flex: "1 1 0", minHeight: 320 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/live-office-pastel.png"
@@ -341,25 +337,21 @@ export default function LiveOfficePage() {
           />
           <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-black/5 pointer-events-none" />
 
-          {/* Zone overlays */}
           {ZONES.map(zone => (
-            <ZoneOverlay
-              key={zone.id}
-              zone={zone}
+            <ZoneOverlay key={zone.id} zone={zone}
               active={activeZone === zone.id}
-              onClick={() => toggleZone(zone.id)}
-            />
+              onClick={() => toggleZone(zone.id)} />
           ))}
         </div>
 
-        {/* Bottom panels */}
-        <div className="px-6 py-3 shrink-0">
+        {/* Bottom panels — proper padding, min-height per panel */}
+        <div className="px-6 py-4 shrink-0">
           <BottomPanels />
         </div>
       </div>
 
       {/* ── RIGHT CHAT PANEL ───────────────────────────── */}
-      <div className="shrink-0 flex flex-col justify-start pt-5 pr-4 pb-4 gap-3 overflow-y-auto" style={{ height: "100vh" }}>
+      <div className="shrink-0 pt-5 pr-4 pb-4" style={{ width: 256 }}>
         <ChatPanel />
       </div>
 
