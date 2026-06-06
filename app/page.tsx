@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { officeAgents, officeActivityFeed, companyHealth, officeZones } from "@/lib/officeData";
 
 /* ─────────────────────────────────────────────────────────────
@@ -117,14 +117,48 @@ function ZoneOverlay({ zone, onClick, active }: {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   RIGHT CHAT PANEL
+   RIGHT CHAT PANEL  (connected to /api/chat-agent)
 ───────────────────────────────────────────────────────────── */
 const COLOR_MAP: Record<string, string> = {
   violet: "#b794f4", cyan: "#67e8f9", pink: "#f9a8d4",
   amber: "#fcd34d", emerald: "#6ee7b7", blue: "#93c5fd",
 };
 
+interface ChatMsg { id: string; role: "user" | "ai"; text: string; }
+
 function ChatPanel() {
+  const [input, setInput] = useState("");
+  const [chatLog, setChatLog] = useState<ChatMsg[]>([]);
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatLog, loading]);
+
+  async function handleSend() {
+    const msg = input.trim();
+    if (!msg || loading) return;
+    setInput("");
+    const userMsg: ChatMsg = { id: `u${Date.now()}`, role: "user", text: msg };
+    setChatLog(prev => [...prev, userMsg]);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = await res.json();
+      const reply = data.reply ?? data.output ?? data.message ?? (data.success ? "✅ รับเรื่องแล้ว" : "❌ " + (data.error ?? "เกิดข้อผิดพลาด"));
+      setChatLog(prev => [...prev, { id: `a${Date.now()}`, role: "ai", text: reply }]);
+    } catch {
+      setChatLog(prev => [...prev, { id: `e${Date.now()}`, role: "ai", text: "❌ ไม่สามารถเชื่อมต่อ agent ได้" }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div
       className="flex flex-col rounded-2xl overflow-hidden"
@@ -138,7 +172,7 @@ function ChatPanel() {
         </span>
       </div>
 
-      {/* Feed */}
+      {/* Activity feed */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         {officeActivityFeed.map(ev => (
           <div key={ev.id} className="flex gap-2 items-start">
@@ -159,12 +193,73 @@ function ChatPanel() {
             </div>
           </div>
         ))}
+
+        {/* Divider if there are chat messages */}
+        {chatLog.length > 0 && (
+          <div className="flex items-center gap-2 py-1">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-[10px] text-white/30">แชทกับ AI</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+        )}
+
+        {/* Chat log */}
+        {chatLog.map(m => (
+          <div key={m.id} className={`flex gap-2 items-start ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+              style={{ background: m.role === "user" ? "#6d28d9" : "#0e7490", color: "#fff" }}
+            >
+              {m.role === "user" ? "คุณ" : "AI"}
+            </div>
+            <div
+              className="max-w-[75%] rounded-xl px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap"
+              style={{
+                background: m.role === "user" ? "rgba(109,40,217,0.25)" : "rgba(255,255,255,0.07)",
+                color: m.role === "user" ? "#e9d5ff" : "#d1d5db",
+                border: m.role === "user" ? "1px solid rgba(109,40,217,0.3)" : "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              {m.text}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex gap-2 items-center px-1">
+            <div className="w-7 h-7 rounded-full bg-cyan-900/50 flex items-center justify-center text-[10px] text-cyan-300 font-bold shrink-0">AI</div>
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
 
-      {/* Input stub */}
+      {/* Input */}
       <div className="px-3 py-2 border-t border-white/5 shrink-0">
-        <div className="rounded-lg px-3 py-2 text-xs text-white/30" style={{ background: "rgba(255,255,255,0.04)" }}>
-          พิมพ์ข้อความ...
+        <div className="flex items-center gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
+            placeholder="พิมพ์ข้อความถึง AI agent..."
+            className="flex-1 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 outline-none"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#0891b2)" }}
+          >
+            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

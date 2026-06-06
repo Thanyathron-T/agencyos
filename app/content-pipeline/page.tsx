@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Header from "@/components/Header";
 import { contentPipeline } from "@/lib/mockData";
 
@@ -38,14 +41,122 @@ const columns = [
   { key: "completed", label: "Completed" },
 ] as const;
 
+/* ─── Content Generator Modal ─── */
+function ContentModal({ onClose }: { onClose: () => void }) {
+  const [brief, setBrief] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    if (!brief.trim() || loading) return;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/content-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(data.captions ?? data.output ?? JSON.stringify(data, null, 2));
+      } else {
+        setError(data.error ?? "เกิดข้อผิดพลาด");
+      }
+    } catch {
+      setError("ไม่สามารถเชื่อมต่อ API ได้");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+      <div className="w-full max-w-xl rounded-2xl p-6 bg-surface border border-edge shadow-2xl">
+        {/* Modal header */}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-ink">✍️ สร้าง Content ด้วย AI</h2>
+            <p className="text-xs text-ink-muted mt-0.5">บอก brief แล้วให้ AI เขียน caption ให้ 3 แบบ</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-muted hover:text-ink transition-colors hover:bg-white/5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Brief input */}
+        <textarea
+          value={brief}
+          onChange={e => setBrief(e.target.value)}
+          placeholder="เช่น: โปรโมทสินค้า skincare สำหรับวัยรุ่น เน้นความเป็นธรรมชาติ ราคาไม่แพง..."
+          rows={4}
+          className="w-full rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-muted outline-none resize-none bg-surface-2 border border-edge focus:border-violet-600/50 transition-colors"
+        />
+
+        {/* Generate button */}
+        <button
+          onClick={handleGenerate}
+          disabled={loading || !brief.trim()}
+          className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+          style={{ background: "linear-gradient(135deg,#7c3aed,#0891b2)" }}
+        >
+          {loading ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              กำลังสร้าง…
+            </>
+          ) : "🚀 สร้าง Content"}
+        </button>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 rounded-xl px-4 py-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20">
+            ❌ {error}
+          </div>
+        )}
+
+        {/* Result */}
+        {result && (
+          <div className="mt-4 rounded-xl px-4 py-3 bg-surface-2 border border-edge">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-ink">✅ Caption ที่ได้</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(result)}
+                className="text-[10px] text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                Copy ทั้งหมด
+              </button>
+            </div>
+            <pre className="text-xs text-ink-muted leading-relaxed whitespace-pre-wrap">{result}</pre>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ContentPipelinePage() {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div>
+      {showModal && <ContentModal onClose={() => setShowModal(false)} />}
+
       <Header
         title="Content Pipeline"
         subtitle={`${contentPipeline.length} content items · ${contentPipeline.filter((c) => c.status === "in_progress").length} in progress`}
         action={
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 bg-gradient-to-r from-violet-600 to-cyan-500">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 bg-gradient-to-r from-violet-600 to-cyan-500"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
