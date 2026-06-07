@@ -36,25 +36,31 @@ type ZoneDef = {
   /** desk anchor in fraction of canvas (0-1), characters sit just above the desk */
   deskX: number;
   deskY: number;
+  /** pastel carpet color matching the zone label badge */
+  color: string;
+  /** size of the carpet patch, in fraction of canvas */
+  rugW: number;
+  rugH: number;
 };
 
 const ZONES: ZoneDef[] = [
-  { id: "z-marketing", deskX: 0.12, deskY: 0.22 },
-  { id: "z-content", deskX: 0.40, deskY: 0.20 },
-  { id: "z-design", deskX: 0.78, deskY: 0.22 },
-  { id: "z-ads", deskX: 0.14, deskY: 0.74 },
-  { id: "z-support", deskX: 0.48, deskY: 0.76 },
-  { id: "z-ops", deskX: 0.82, deskY: 0.74 },
+  { id: "z-marketing", deskX: 0.12, deskY: 0.22, color: "#ffd4e8", rugW: 0.22, rugH: 0.34 },
+  { id: "z-content", deskX: 0.40, deskY: 0.20, color: "#cdeaff", rugW: 0.20, rugH: 0.32 },
+  { id: "z-design", deskX: 0.78, deskY: 0.22, color: "#e1d4ff", rugW: 0.24, rugH: 0.34 },
+  { id: "z-ads", deskX: 0.14, deskY: 0.74, color: "#fff0c4", rugW: 0.22, rugH: 0.34 },
+  { id: "z-support", deskX: 0.48, deskY: 0.76, color: "#ffdfc7", rugW: 0.20, rugH: 0.32 },
+  { id: "z-ops", deskX: 0.82, deskY: 0.74, color: "#c8f5e2", rugW: 0.24, rugH: 0.34 },
+  // CEO's center desk — not one of the 6 labelled zones, just a quiet spot of its own
+  { id: "z-ceo", deskX: 0.5, deskY: 0.48, color: "#ffeec2", rugW: 0.16, rugH: 0.22 },
 ];
 
 type CharDef = { sprite: string; zoneId: string };
 
 const CHARACTERS: CharDef[] = [
-  { sprite: "/sprites/CEO.png", zoneId: "z-marketing" },
+  { sprite: "/sprites/CEO.png", zoneId: "z-ceo" },
   { sprite: "/sprites/Marketing_Strategist.png", zoneId: "z-marketing" },
   { sprite: "/sprites/Content_Creator.png", zoneId: "z-content" },
   { sprite: "/sprites/Graphic_Designer.png", zoneId: "z-design" },
-  { sprite: "/sprites/Video_Editor.png", zoneId: "z-design" },
   { sprite: "/sprites/Ads_Specialist.png", zoneId: "z-ads" },
   { sprite: "/sprites/Customer_Service.png", zoneId: "z-support" },
   { sprite: "/sprites/Order_Manager.png", zoneId: "z-ops" },
@@ -303,20 +309,51 @@ export default function OfficeCanvas() {
     }
 
     function drawFloorAndWalls() {
+      // warm cozy base tone beneath everything
+      ctx!.fillStyle = "#fbf2e7";
+      ctx!.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // soft floor grid texture, dialed down so it reads as a subtle pattern not a harsh grid
       if (floorTile && floorTile.naturalWidth) {
+        ctx!.save();
+        ctx!.globalAlpha = 0.3;
         for (let y = 0; y < CANVAS_H; y += TILE) {
           for (let x = 0; x < CANVAS_W; x += TILE) {
             ctx!.drawImage(floorTile, TILESET.floor.x, TILESET.floor.y, TILESET.floor.w, TILESET.floor.h, x, y, TILE, TILE);
           }
         }
-      } else {
-        ctx!.fillStyle = "#f4ede2";
-        ctx!.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx!.restore();
       }
+
+      // pastel carpet patch per zone, in the same hue as its label badge
+      for (const zone of ZONES) {
+        const cx = zone.deskX * CANVAS_W;
+        const cy = zone.deskY * CANVAS_H;
+        const w = zone.rugW * CANVAS_W;
+        const h = zone.rugH * CANVAS_H;
+        ctx!.save();
+        ctx!.globalAlpha = 0.4;
+        ctx!.fillStyle = zone.color;
+        roundRect(ctx!, cx - w / 2, cy - h / 2, w, h, 22);
+        ctx!.fill();
+        ctx!.restore();
+      }
+
+      // cozy vignette — darken only near the edges, leaving the centre bright
+      const vignette = ctx!.createRadialGradient(
+        CANVAS_W / 2, CANVAS_H / 2, Math.min(CANVAS_W, CANVAS_H) * 0.32,
+        CANVAS_W / 2, CANVAS_H / 2, Math.max(CANVAS_W, CANVAS_H) * 0.62
+      );
+      vignette.addColorStop(0, "rgba(60,40,30,0)");
+      vignette.addColorStop(1, "rgba(60,40,30,0.16)");
+      ctx!.fillStyle = vignette;
+      ctx!.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
       if (wallTile && wallTile.naturalWidth) {
         const wt = TILESET.wall;
-        const wallH = TILE * 0.7;
+        const wallH = TILE * 0.6;
+        ctx!.save();
+        ctx!.globalAlpha = 0.5;
         // top & bottom borders
         for (let x = 0; x < CANVAS_W; x += TILE) {
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, x, 0, TILE, wallH);
@@ -327,6 +364,14 @@ export default function OfficeCanvas() {
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, 0, y, wallH, TILE);
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, CANVAS_W - wallH, y, wallH, TILE);
         }
+        ctx!.restore();
+
+        // extra darkening strip right at the very edge for a "wall in shadow" feel
+        ctx!.fillStyle = "rgba(50,35,30,0.22)";
+        ctx!.fillRect(0, 0, CANVAS_W, wallH * 0.45);
+        ctx!.fillRect(0, CANVAS_H - wallH * 0.45, CANVAS_W, wallH * 0.45);
+        ctx!.fillRect(0, 0, wallH * 0.45, CANVAS_H);
+        ctx!.fillRect(CANVAS_W - wallH * 0.45, 0, wallH * 0.45, CANVAS_H);
       }
     }
 
