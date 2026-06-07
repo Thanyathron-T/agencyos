@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import { officeAgents, officeActivityFeed, companyHealth, officeZones } from "@/lib/officeData";
+import OfficeCanvas from "@/components/live-office/OfficeCanvas";
 
 /* ─────────────────────────────────────────────────────────────
    DERIVED DATA
@@ -124,7 +126,53 @@ const COLOR_MAP: Record<string, string> = {
   amber: "#fcd34d", emerald: "#6ee7b7", blue: "#93c5fd",
 };
 
-interface ChatMsg { id: string; role: "user" | "ai"; text: string; }
+interface ChatMsg {
+  id: string;
+  role: "user" | "ai";
+  text: string;
+  agentTypes?: string[];
+}
+
+const AGENT_TAG_INFO: Record<string, { label: string; color: string }> = {
+  content: { label: "📝 Content Agent", color: "#67e8f9" },
+  ads: { label: "📢 Ad Copy Agent", color: "#fcd34d" },
+  marketing: { label: "📊 Marketing Agent", color: "#b794f4" },
+  seo: { label: "🔍 SEO Agent", color: "#6ee7b7" },
+  brand: { label: "🎨 Brand Agent", color: "#f9a8d4" },
+  "customer-service": { label: "💬 Customer Service", color: "#93c5fd" },
+  analytics: { label: "📈 Analytics Agent", color: "#67e8f9" },
+  marketplace: { label: "🛒 Marketplace Agent", color: "#fcd34d" },
+  email: { label: "✉️ Email Agent", color: "#c4b5fd" },
+  influencer: { label: "🌟 Influencer Agent", color: "#f9a8d4" },
+  graphic: { label: "🖼️ Graphic Agent", color: "#6ee7b7" },
+  video: { label: "🎬 Video Agent", color: "#93c5fd" },
+  strategy: { label: "🧭 Strategy", color: "#a78bfa" },
+};
+
+function MarkdownMessage({ text }: { text: string }) {
+  return (
+    <div className="prose-chat">
+      <ReactMarkdown
+        components={{
+          h1: ({ children }) => <h1 className="text-[13px] font-bold text-white mt-2 mb-1 first:mt-0">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-[12.5px] font-bold text-white mt-2 mb-1 first:mt-0">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-[12px] font-bold text-white/90 mt-2 mb-1 first:mt-0">{children}</h3>,
+          p: ({ children }) => <p className="text-[11px] leading-relaxed mb-1.5 last:mb-0">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5 mb-1.5">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-4 space-y-0.5 mb-1.5">{children}</ol>,
+          li: ({ children }) => <li className="text-[11px] leading-relaxed">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+          em: ({ children }) => <em className="italic text-white/80">{children}</em>,
+          code: ({ children }) => <code className="px-1 py-0.5 rounded bg-white/10 text-[10px] font-mono text-cyan-300">{children}</code>,
+          hr: () => <hr className="my-2 border-white/10" />,
+          a: ({ children, href }) => <a href={href} target="_blank" rel="noreferrer" className="text-cyan-300 underline">{children}</a>,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 function ChatPanel() {
   const [input, setInput] = useState("");
@@ -156,7 +204,10 @@ function ChatPanel() {
       });
       const data = await res.json();
       const reply = data.reply ?? data.output ?? data.message ?? (data.success ? "✅ รับเรื่องแล้ว" : "❌ " + (data.error ?? "เกิดข้อผิดพลาด"));
-      setChatLog(prev => [...prev, { id: `a${Date.now()}`, role: "ai", text: reply }]);
+      const agentTypes: string[] | undefined = Array.isArray(data.tasks)
+        ? Array.from(new Set(data.tasks.map((t: { type: string }) => t.type)))
+        : undefined;
+      setChatLog(prev => [...prev, { id: `a${Date.now()}`, role: "ai", text: reply, agentTypes }]);
     } catch {
       setChatLog(prev => [...prev, { id: `e${Date.now()}`, role: "ai", text: "❌ ไม่สามารถเชื่อมต่อ agent ได้" }]);
     } finally {
@@ -213,30 +264,74 @@ function ChatPanel() {
           <div key={m.id} className={`flex gap-2 items-start ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-              style={{ background: m.role === "user" ? "#6d28d9" : "#0e7490", color: "#fff" }}
-            >
-              {m.role === "user" ? "คุณ" : "AI"}
-            </div>
-            <div
-              className="max-w-[75%] rounded-xl px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap"
               style={{
-                background: m.role === "user" ? "rgba(109,40,217,0.25)" : "rgba(255,255,255,0.07)",
-                color: m.role === "user" ? "#e9d5ff" : "#d1d5db",
-                border: m.role === "user" ? "1px solid rgba(109,40,217,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                background: m.role === "user" ? "linear-gradient(135deg,#7c3aed,#a78bfa)" : "linear-gradient(135deg,#0e7490,#06b6d4)",
+                color: "#fff",
               }}
             >
-              {m.text}
+              {m.role === "user" ? "คุณ" : "👔"}
+            </div>
+            <div className={`min-w-0 max-w-[78%] ${m.role === "user" ? "items-end" : "items-start"} flex flex-col`}>
+              {/* Agent name */}
+              <span className={`text-[10px] font-semibold mb-1 px-0.5 ${m.role === "user" ? "text-violet-300" : "text-cyan-300"}`}>
+                {m.role === "user" ? "คุณ" : "Lunaria C."}
+              </span>
+
+              {/* Sub-agent tags */}
+              {m.role === "ai" && m.agentTypes && m.agentTypes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {m.agentTypes.map(t => {
+                    const info = AGENT_TAG_INFO[t] ?? { label: t, color: "#9ca3af" };
+                    return (
+                      <span
+                        key={t}
+                        className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                        style={{ background: info.color + "22", color: info.color, border: `1px solid ${info.color}44` }}
+                      >
+                        {info.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div
+                className="rounded-xl px-3 py-2"
+                style={{
+                  background: m.role === "user" ? "rgba(109,40,217,0.25)" : "rgba(255,255,255,0.06)",
+                  color: m.role === "user" ? "#e9d5ff" : "#d1d5db",
+                  border: m.role === "user" ? "1px solid rgba(109,40,217,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                {m.role === "ai" ? (
+                  <MarkdownMessage text={m.text} />
+                ) : (
+                  <p className="text-[11px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                )}
+              </div>
             </div>
           </div>
         ))}
 
         {loading && (
-          <div className="flex gap-2 items-center px-1">
-            <div className="w-7 h-7 rounded-full bg-cyan-900/50 flex items-center justify-center text-[10px] text-cyan-300 font-bold shrink-0">AI</div>
-            <div className="flex gap-1">
-              {[0, 1, 2].map(i => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-              ))}
+          <div className="flex gap-2 items-start px-0.5">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+              style={{ background: "linear-gradient(135deg,#0e7490,#06b6d4)", color: "#fff" }}
+            >
+              👔
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-semibold mb-1 px-0.5 text-cyan-300">Lunaria C.</span>
+              <div
+                className="rounded-xl px-3 py-2.5 flex items-center gap-1.5"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <span className="text-[10px] text-white/40 mr-0.5">กำลังวิเคราะห์และมอบหมายงาน</span>
+                {[0, 1, 2].map(i => (
+                  <span key={i} className="w-1.5 h-1.5 rounded-full bg-cyan-300/70 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -427,14 +522,11 @@ export default function LiveOfficePage() {
 
         {/* Office image + zone overlays — flex-1 so it fills remaining height */}
         <div className="relative overflow-hidden mx-6 rounded-3xl shadow-xl" style={{ flex: "1 1 0", minHeight: 320 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/live-office-pastel.png"
-            onError={(e) => { (e.target as HTMLImageElement).src = "/reference/office-scene.png"; }}
-            alt="Live Office"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-            draggable={false}
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(135deg, #fdf2f8 0%, #eff6ff 50%, #f5f3ff 100%)" }}
           />
+          <OfficeCanvas />
           <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-black/5 pointer-events-none" />
 
           {ZONES.map(zone => (

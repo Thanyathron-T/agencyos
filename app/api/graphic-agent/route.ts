@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const GROQ_KEY = process.env.GROQ_API_KEY ?? ''
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+const SYSTEM_PROMPT = `คุณคือ Creative Director มืออาชีพ ผู้เชี่ยวชาญการสร้างสรรค์ภาพและงานออกแบบ
+หน้าที่ของคุณคือ:
+1. สร้าง Image Prompt ภาษาอังกฤษที่ละเอียดสำหรับใช้กับ Pollinations AI (หรือ AI image generator อื่นๆ) — เขียน prompt เป็นภาษาอังกฤษเสมอ ระบุ style, lighting, composition, color palette ให้ชัดเจน
+2. เขียน Artwork Brief และแนวทางภาพ (visual guidelines)
+3. อธิบาย Brand Asset ต่างๆ
+ส่วนคำอธิบาย เหตุผล และคำแนะนำ ให้เขียนเป็นภาษาไทยเสมอ ส่วน Image Prompt ให้เขียนเป็นภาษาอังกฤษ และระบุให้ชัดเจนว่าส่วนไหนคือ prompt`
+
+async function callGroq(brief: string): Promise<string> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: brief },
+      ],
+      max_tokens: 1500,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Groq error: ${err}`)
+  }
+  const data = await res.json()
+  return data.choices?.[0]?.message?.content ?? '(ไม่มีผลลัพธ์)'
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const brief: string = body.brief ?? body.message ?? body.text ?? ''
+
+    if (!brief) {
+      return NextResponse.json({ success: false, error: 'brief is required' }, { status: 400 })
+    }
+    if (!GROQ_KEY) {
+      return NextResponse.json({ success: false, error: 'GROQ_API_KEY is not configured' }, { status: 500 })
+    }
+
+    const designBrief = await callGroq(brief)
+
+    const { error: dbErr } = await supabase.from('tasks').insert({
+      agent_name: 'Graphic Agent',
+      action: 'จัดทำ Image Prompt และ Artwork Brief เสร็จแล้ว ✅',
+      detail: brief.slice(0, 200),
+      color_key: 'emerald',
+    })
+    if (dbErr) console.error('[graphic-agent] Supabase insert error:', dbErr.message)
+
+    return NextResponse.json({ success: true, source: 'groq', designBrief })
+
+  } catch (err) {
+    console.error('[graphic-agent] Unexpected error:', err)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+}

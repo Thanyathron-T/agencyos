@@ -1,4 +1,4 @@
-# n8n Workflows — AgencyOS
+# n8n Workflows — Lunaria Agency
 
 ## content-agent.json — Content Creator Agent
 

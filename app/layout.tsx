@@ -3,7 +3,7 @@ import "@/styles/globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "AgencyOS — AI Marketing Suite",
+  title: "Lunaria Agency — AI Marketing Suite",
   description: "Premium AI-powered marketing agency dashboard",
 };
 
