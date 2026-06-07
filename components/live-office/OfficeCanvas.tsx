@@ -7,38 +7,48 @@ const CANVAS_W = 1100;
 const CANVAS_H = 550;
 const TILE = 32; // on-screen tile size (floor/wall grid)
 
-/* ── Character sprite sheet geometry (1536x1024, empirically measured)
-   Row 1 (y 0-512): walkDown(4), walkBack(4), idle(2), sitting(2)
-   Row 2 (y 512-1024): walkLeft(4), walkRight(4)                ──── */
-const FRAME_W = 104;
-const FRAME_H = 512;
-const ROWS: Record<string, { y: number; xs: number[] }> = {
-  walkDown: { y: 0, xs: [20, 128, 236, 344] },
-  walkBack: { y: 0, xs: [503, 615, 727, 839] },
-  idle: { y: 0, xs: [1133, 1241] },
-  sitting: { y: 0, xs: [1361, 1469] },
-  walkLeft: { y: 512, xs: [42, 156, 270, 384] },
-  walkRight: { y: 512, xs: [520, 632, 744, 856] },
+/* ── Character sprite sheet geometry ───────────────────────────
+   Sheet ≈ 1536x1024, 3 rows of equal height (≈341px), empirically
+   measured frame x-positions (consistent across all 8 character sheets):
+     Row 1: walk_down x4, walk_up x4, idle x2
+     Row 2: walk_left x4, walk_right x4, sitting_at_desk x2 (wider — incl. desk art)
+     Row 3: idle x2 (extra)
+   Background is pure black (#000) with no alpha — removed at runtime
+   via per-pixel color-keying (getImageData/putImageData).        ──── */
+const SHEET_W = 1536;
+const SHEET_H = 1024;
+const ROW_H = Math.floor(SHEET_H / 3);
+const FRAME_W = 93;
+const SIT_FRAME_W = 137;
+
+const ROWS: Record<string, { y: number; xs: number[]; w: number }> = {
+  walkDown: { y: 0 * ROW_H, xs: [61, 208, 355, 503], w: FRAME_W },
+  walkUp: { y: 0 * ROW_H, xs: [668, 811, 956, 1100], w: FRAME_W },
+  idle: { y: 0 * ROW_H, xs: [1241, 1383], w: FRAME_W },
+  walkLeft: { y: 1 * ROW_H, xs: [55, 197, 339, 482], w: FRAME_W },
+  walkRight: { y: 1 * ROW_H, xs: [647, 787, 928, 1070], w: FRAME_W },
+  sitting: { y: 1 * ROW_H, xs: [1196, 1339], w: SIT_FRAME_W },
+  idle2: { y: 2 * ROW_H, xs: [61, 208], w: FRAME_W },
 };
 type AnimName = keyof typeof ROWS;
 
-/* ── Office tileset source rectangles (sampled from the sheets) ─── */
+/* ── office_tileset..png — 4 columns x 6 rows grid, ~313x209 cells ─ */
+const TS_SRC = "/sprites/office_tileset..png";
+const CELL_W = 1254 / 4;
+const CELL_H = 1254 / 6;
+const cell = (col: number, row: number) => ({ x: col * CELL_W, y: row * CELL_H, w: CELL_W, h: CELL_H });
 const TILESET = {
-  floor: { src: "/sprites/Office tiles/Little_Bits_Office_Floors.png", x: 16, y: 0, w: 16, h: 16 },
-  wall: { src: "/sprites/Office tiles/Little_Bits_office_walls.png", x: 0, y: 80, w: 21, h: 27 },
-  desk: { src: "/sprites/Office tiles/Little_Bits_office_objects.png", x: 100, y: 70, w: 26, h: 15 },
-  chair: { src: "/sprites/Office tiles/Little_Bits_office_objects.png", x: 16, y: 33, w: 16, h: 14 },
-  computer: { src: "/sprites/Office tiles/Little_Bits_office_objects.png", x: 48, y: 4, w: 16, h: 18 },
+  floor: { src: TS_SRC, ...cell(0, 0) }, // beige carpet — tileset row1 col1
+  wall: { src: TS_SRC, ...cell(1, 0) }, // brick wall texture
+  desk: { src: TS_SRC, ...cell(2, 2) }, // computer desk (with monitor)
+  chair: { src: TS_SRC, ...cell(0, 3) }, // office chair
 } as const;
 
 type ZoneDef = {
   id: string;
-  /** desk anchor in fraction of canvas (0-1), characters sit just above the desk */
   deskX: number;
   deskY: number;
-  /** pastel carpet color matching the zone label badge */
   color: string;
-  /** size of the carpet patch, in fraction of canvas */
   rugW: number;
   rugH: number;
 };
@@ -50,20 +60,23 @@ const ZONES: ZoneDef[] = [
   { id: "z-ads", deskX: 0.14, deskY: 0.74, color: "#fff0c4", rugW: 0.22, rugH: 0.34 },
   { id: "z-support", deskX: 0.48, deskY: 0.76, color: "#ffdfc7", rugW: 0.20, rugH: 0.32 },
   { id: "z-ops", deskX: 0.82, deskY: 0.74, color: "#c8f5e2", rugW: 0.24, rugH: 0.34 },
-  // CEO's center desk — not one of the 6 labelled zones, just a quiet spot of its own
+  // CEO's quiet centre desk — roams between every zone
   { id: "z-ceo", deskX: 0.5, deskY: 0.48, color: "#ffeec2", rugW: 0.16, rugH: 0.22 },
 ];
 
 type CharDef = { sprite: string; zoneId: string };
 
+/** sprite filenames contain spaces — encode for use as URLs */
+const sp = (name: string) => `/sprites/${encodeURIComponent(name)}.png`;
+
 const CHARACTERS: CharDef[] = [
-  { sprite: "/sprites/CEO.png", zoneId: "z-ceo" },
-  { sprite: "/sprites/Marketing_Strategist.png", zoneId: "z-marketing" },
-  { sprite: "/sprites/Content_Creator.png", zoneId: "z-content" },
-  { sprite: "/sprites/Graphic_Designer.png", zoneId: "z-design" },
-  { sprite: "/sprites/Ads_Specialist.png", zoneId: "z-ads" },
-  { sprite: "/sprites/Customer_Service.png", zoneId: "z-support" },
-  { sprite: "/sprites/Order_Manager.png", zoneId: "z-ops" },
+  { sprite: sp("CEO"), zoneId: "z-ceo" },
+  { sprite: sp("Marketing Strategist"), zoneId: "z-marketing" }, // pink hair
+  { sprite: sp("Content Creator"), zoneId: "z-content" }, // blue hair
+  { sprite: sp("Graphic Designer"), zoneId: "z-design" }, // purple hair
+  { sprite: sp("Ads Specialist"), zoneId: "z-ads" }, // black hair
+  { sprite: sp("Customer Service"), zoneId: "z-support" }, // brown hair, headset
+  { sprite: sp("Order Manager"), zoneId: "z-ops" }, // light blue hair, cap
 ];
 
 const PHRASES = [
@@ -81,7 +94,6 @@ type Phase = "sitting" | "walkingTo" | "chatting" | "walkingBack";
 
 type Character = {
   def: CharDef;
-  raw: HTMLImageElement | null;
   img: HTMLCanvasElement | null; // color-keyed copy
   homeX: number;
   homeY: number;
@@ -95,13 +107,15 @@ type Character = {
   target: Character | null;
   speech: string | null;
   speechTimer: number;
+  speechCooldown: number;
 };
 
 const ANIM_FPS = 6;
 const WALK_SPEED = 70; // px/sec
 const SCALE = 0.34; // character draw scale
+const BLACK_THRESHOLD = 24;
 
-/** Loads an image and returns a color-keyed copy (pure-black -> transparent) drawn on an offscreen canvas. */
+/** Loads an image and returns a color-keyed copy: pure-black pixels -> transparent. */
 function loadKeyed(src: string): Promise<HTMLCanvasElement> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -116,26 +130,17 @@ function loadKeyed(src: string): Promise<HTMLCanvasElement> {
         const data = octx.getImageData(0, 0, off.width, off.height);
         const px = data.data;
         for (let i = 0; i < px.length; i += 4) {
-          if (px[i] < 12 && px[i + 1] < 12 && px[i + 2] < 12) {
+          if (px[i] < BLACK_THRESHOLD && px[i + 1] < BLACK_THRESHOLD && px[i + 2] < BLACK_THRESHOLD) {
             px[i + 3] = 0;
           }
         }
         octx.putImageData(data, 0, 0);
       } catch {
-        /* canvas tainted (cross-origin) — fall back to raw draw, alpha already present */
+        /* tainted canvas (cross-origin) — leave as-is */
       }
       resolve(off);
     };
     img.onerror = () => resolve(document.createElement("canvas"));
-    img.src = src;
-  });
-}
-
-function loadPlain(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(img);
     img.src = src;
   });
 }
@@ -167,7 +172,6 @@ export default function OfficeCanvas() {
       const hy = zone.deskY * CANVAS_H + (Math.random() * 16 - 8);
       return {
         def,
-        raw: null,
         img: null,
         homeX: hx,
         homeY: hy,
@@ -177,33 +181,31 @@ export default function OfficeCanvas() {
         animFrame: 0,
         animTimer: 0,
         phase: "sitting",
-        phaseTimer: 3 + Math.random() * 7,
+        phaseTimer: 8 + Math.random() * 2, // visit another zone every 8-10s
         target: null,
         speech: null,
         speechTimer: 0,
+        speechCooldown: 5 + Math.random() * 3, // speech bubble every 5-8s
       };
     });
 
-    let floorTile: HTMLImageElement | null = null;
-    let wallTile: HTMLImageElement | null = null;
-    let deskTile: HTMLImageElement | null = null;
-    let chairTile: HTMLImageElement | null = null;
-    let computerTile: HTMLImageElement | null = null;
+    let floorTile: HTMLCanvasElement | null = null;
+    let wallTile: HTMLCanvasElement | null = null;
+    let deskTile: HTMLCanvasElement | null = null;
+    let chairTile: HTMLCanvasElement | null = null;
 
     Promise.all([
-      loadPlain(TILESET.floor.src),
-      loadPlain(TILESET.wall.src),
-      loadPlain(TILESET.desk.src),
-      loadPlain(TILESET.chair.src),
-      loadPlain(TILESET.computer.src),
+      loadKeyed(TILESET.floor.src),
+      loadKeyed(TILESET.wall.src),
+      loadKeyed(TILESET.desk.src),
+      loadKeyed(TILESET.chair.src),
       ...characters.map((c) => loadKeyed(c.def.sprite)),
-    ]).then(([floor, wall, desk, chair, computer, ...keyed]) => {
+    ]).then(([floorImg, wall, desk, chair, ...keyed]) => {
       if (cancelled) return;
-      floorTile = floor;
+      floorTile = floorImg;
       wallTile = wall;
       deskTile = desk;
       chairTile = chair;
-      computerTile = computer;
       keyed.forEach((c, i) => (characters[i].img = c));
     });
 
@@ -216,13 +218,14 @@ export default function OfficeCanvas() {
     function startSpeech(c: Character) {
       c.speech = PHRASES[Math.floor(Math.random() * PHRASES.length)];
       c.speechTimer = 3 + Math.random() * 1.5;
+      c.speechCooldown = 5 + Math.random() * 3;
     }
 
     function setWalkFacing(c: Character, dx: number, dy: number) {
       if (Math.abs(dx) > Math.abs(dy)) {
         c.facing = dx < 0 ? "walkLeft" : "walkRight";
       } else {
-        c.facing = dy < 0 ? "walkBack" : "walkDown";
+        c.facing = dy < 0 ? "walkUp" : "walkDown";
       }
     }
 
@@ -239,6 +242,9 @@ export default function OfficeCanvas() {
         if (c.speech) {
           c.speechTimer -= dt;
           if (c.speechTimer <= 0) c.speech = null;
+        } else {
+          c.speechCooldown -= dt;
+          if (c.speechCooldown <= 0) startSpeech(c);
         }
 
         c.phaseTimer -= dt;
@@ -253,10 +259,9 @@ export default function OfficeCanvas() {
               if (c.target) {
                 c.phase = "walkingTo";
               } else {
-                c.phaseTimer = 4 + Math.random() * 6;
+                c.phaseTimer = 8 + Math.random() * 2;
               }
             }
-            if (Math.random() < 0.0007) startSpeech(c);
             break;
           }
           case "walkingTo": {
@@ -292,10 +297,9 @@ export default function OfficeCanvas() {
               c.x = c.homeX;
               c.y = c.homeY;
               c.phase = "sitting";
-              c.phaseTimer = 5 + Math.random() * 8;
+              c.phaseTimer = 8 + Math.random() * 2;
               c.facing = "sitting";
               c.target = null;
-              if (Math.random() < 0.35) startSpeech(c);
             } else {
               setWalkFacing(c, dx, dy);
               const speed = WALK_SPEED;
@@ -313,19 +317,20 @@ export default function OfficeCanvas() {
       ctx!.fillStyle = "#fbf2e7";
       ctx!.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      // soft floor grid texture, dialed down so it reads as a subtle pattern not a harsh grid
-      if (floorTile && floorTile.naturalWidth) {
+      // beige carpet tile, dialed down so it reads as a soft texture
+      if (floorTile && floorTile.width) {
         ctx!.save();
         ctx!.globalAlpha = 0.3;
+        const f = TILESET.floor;
         for (let y = 0; y < CANVAS_H; y += TILE) {
           for (let x = 0; x < CANVAS_W; x += TILE) {
-            ctx!.drawImage(floorTile, TILESET.floor.x, TILESET.floor.y, TILESET.floor.w, TILESET.floor.h, x, y, TILE, TILE);
+            ctx!.drawImage(floorTile, f.x, f.y, f.w, f.h, x, y, TILE, TILE);
           }
         }
         ctx!.restore();
       }
 
-      // pastel carpet patch per zone, in the same hue as its label badge
+      // pastel carpet patch per zone, matching its label badge hue
       for (const zone of ZONES) {
         const cx = zone.deskX * CANVAS_W;
         const cy = zone.deskY * CANVAS_H;
@@ -339,7 +344,7 @@ export default function OfficeCanvas() {
         ctx!.restore();
       }
 
-      // cozy vignette — darken only near the edges, leaving the centre bright
+      // cozy vignette — darken only near the edges
       const vignette = ctx!.createRadialGradient(
         CANVAS_W / 2, CANVAS_H / 2, Math.min(CANVAS_W, CANVAS_H) * 0.32,
         CANVAS_W / 2, CANVAS_H / 2, Math.max(CANVAS_W, CANVAS_H) * 0.62
@@ -349,29 +354,27 @@ export default function OfficeCanvas() {
       ctx!.fillStyle = vignette;
       ctx!.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      if (wallTile && wallTile.naturalWidth) {
+      // dark border wall around the edges
+      if (wallTile && wallTile.width) {
         const wt = TILESET.wall;
         const wallH = TILE * 0.6;
         ctx!.save();
-        ctx!.globalAlpha = 0.5;
-        // top & bottom borders
+        ctx!.globalAlpha = 0.55;
         for (let x = 0; x < CANVAS_W; x += TILE) {
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, x, 0, TILE, wallH);
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, x, CANVAS_H - wallH, TILE, wallH);
         }
-        // left & right borders
         for (let y = 0; y < CANVAS_H; y += TILE) {
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, 0, y, wallH, TILE);
           ctx!.drawImage(wallTile, wt.x, wt.y, wt.w, wt.h, CANVAS_W - wallH, y, wallH, TILE);
         }
         ctx!.restore();
 
-        // extra darkening strip right at the very edge for a "wall in shadow" feel
-        ctx!.fillStyle = "rgba(50,35,30,0.22)";
-        ctx!.fillRect(0, 0, CANVAS_W, wallH * 0.45);
-        ctx!.fillRect(0, CANVAS_H - wallH * 0.45, CANVAS_W, wallH * 0.45);
-        ctx!.fillRect(0, 0, wallH * 0.45, CANVAS_H);
-        ctx!.fillRect(CANVAS_W - wallH * 0.45, 0, wallH * 0.45, CANVAS_H);
+        ctx!.fillStyle = "rgba(40,28,24,0.32)";
+        ctx!.fillRect(0, 0, CANVAS_W, wallH * 0.5);
+        ctx!.fillRect(0, CANVAS_H - wallH * 0.5, CANVAS_W, wallH * 0.5);
+        ctx!.fillRect(0, 0, wallH * 0.5, CANVAS_H);
+        ctx!.fillRect(CANVAS_W - wallH * 0.5, 0, wallH * 0.5, CANVAS_H);
       }
     }
 
@@ -379,23 +382,17 @@ export default function OfficeCanvas() {
       for (const zone of ZONES) {
         const cx = zone.deskX * CANVAS_W;
         const cy = zone.deskY * CANVAS_H;
-        if (deskTile && deskTile.naturalWidth) {
+        if (deskTile && deskTile.width) {
           const d = TILESET.desk;
-          const dw = d.w * 1.8;
-          const dh = d.h * 1.8;
+          const dw = d.w * 0.34;
+          const dh = d.h * 0.34;
           ctx!.drawImage(deskTile, d.x, d.y, d.w, d.h, cx - dw / 2, cy - dh / 2, dw, dh);
         }
-        if (computerTile && computerTile.naturalWidth) {
-          const m = TILESET.computer;
-          const mw = m.w * 1.4;
-          const mh = m.h * 1.4;
-          ctx!.drawImage(computerTile, m.x, m.y, m.w, m.h, cx - mw / 2, cy - mh - 6, mw, mh);
-        }
-        if (chairTile && chairTile.naturalWidth) {
+        if (chairTile && chairTile.width) {
           const ch = TILESET.chair;
-          const cw = ch.w * 1.6;
-          const chh = ch.h * 1.6;
-          ctx!.drawImage(chairTile, ch.x, ch.y, ch.w, ch.h, cx - cw / 2, cy + 8, cw, chh);
+          const cw = ch.w * 0.26;
+          const chh = ch.h * 0.26;
+          ctx!.drawImage(chairTile, ch.x, ch.y, ch.w, ch.h, cx - cw / 2, cy + 14, cw, chh);
         }
       }
     }
@@ -405,13 +402,14 @@ export default function OfficeCanvas() {
       const animDef = ROWS[c.facing];
       const sx = animDef.xs[c.animFrame % animDef.xs.length];
       const sy = animDef.y;
+      const sw = animDef.w;
 
-      const dw = FRAME_W * SCALE;
-      const dh = FRAME_H * SCALE;
+      const dw = sw * SCALE;
+      const dh = ROW_H * SCALE;
       const dx = c.x - dw / 2;
       const dy = c.y - dh + dh * 0.18;
 
-      ctx!.drawImage(c.img, sx, sy, FRAME_W, FRAME_H, dx, dy, dw, dh);
+      ctx!.drawImage(c.img, sx, sy, sw, ROW_H, dx, dy, dw, dh);
 
       if (c.speech) drawSpeechBubble(c.speech, c.x, dy - 6);
     }
@@ -419,7 +417,6 @@ export default function OfficeCanvas() {
     function drawSpeechBubble(text: string, cx: number, bottomY: number) {
       ctx!.font = "12px ui-sans-serif, system-ui, sans-serif";
       const padX = 10;
-      const padY = 7;
       const textW = ctx!.measureText(text).width;
       const w = textW + padX * 2;
       const h = 26;
@@ -444,7 +441,7 @@ export default function OfficeCanvas() {
 
       ctx!.fillStyle = "#3b3245";
       ctx!.textBaseline = "middle";
-      ctx!.fillText(text, x + padX, y + h / 2 + 1 + (padY - padY));
+      ctx!.fillText(text, x + padX, y + h / 2 + 1);
       ctx!.restore();
     }
 
