@@ -40,8 +40,7 @@ const cell = (col: number, row: number) => ({ x: col * CELL_W, y: row * CELL_H, 
 const TILESET = {
   floor: { src: TS_SRC, ...cell(0, 0) }, // beige carpet — tileset row1 col1
   wall: { src: TS_SRC, ...cell(1, 0) }, // brick wall texture
-  desk: { src: TS_SRC, ...cell(2, 2) }, // computer desk (with monitor)
-  chair: { src: TS_SRC, ...cell(0, 3) }, // office chair
+  deskWithChair: { src: TS_SRC, ...cell(0, 2) }, // desk + chair combo furniture sprite
 } as const;
 
 type ZoneDef = {
@@ -51,15 +50,16 @@ type ZoneDef = {
   color: string;
   rugW: number;
   rugH: number;
+  label?: string;
 };
 
 const ZONES: ZoneDef[] = [
-  { id: "z-marketing", deskX: 0.12, deskY: 0.22, color: "#ffd4e8", rugW: 0.22, rugH: 0.34 },
-  { id: "z-content", deskX: 0.40, deskY: 0.20, color: "#cdeaff", rugW: 0.20, rugH: 0.32 },
-  { id: "z-design", deskX: 0.78, deskY: 0.22, color: "#e1d4ff", rugW: 0.24, rugH: 0.34 },
-  { id: "z-ads", deskX: 0.14, deskY: 0.74, color: "#fff0c4", rugW: 0.22, rugH: 0.34 },
-  { id: "z-support", deskX: 0.48, deskY: 0.76, color: "#ffdfc7", rugW: 0.20, rugH: 0.32 },
-  { id: "z-ops", deskX: 0.82, deskY: 0.74, color: "#c8f5e2", rugW: 0.24, rugH: 0.34 },
+  { id: "z-marketing", deskX: 0.12, deskY: 0.22, color: "#ffd4e8", rugW: 0.22, rugH: 0.34, label: "💗 Marketing" },
+  { id: "z-content", deskX: 0.40, deskY: 0.20, color: "#cdeaff", rugW: 0.20, rugH: 0.32, label: "💙 Content" },
+  { id: "z-design", deskX: 0.78, deskY: 0.22, color: "#e1d4ff", rugW: 0.24, rugH: 0.34, label: "💜 Design" },
+  { id: "z-ads", deskX: 0.14, deskY: 0.74, color: "#fff0c4", rugW: 0.22, rugH: 0.34, label: "💛 Ads" },
+  { id: "z-support", deskX: 0.48, deskY: 0.76, color: "#ffdfc7", rugW: 0.20, rugH: 0.32, label: "🧡 Support" },
+  { id: "z-ops", deskX: 0.82, deskY: 0.74, color: "#c8f5e2", rugW: 0.24, rugH: 0.34, label: "💚 Operations" },
   // CEO's quiet centre desk — roams between every zone
   { id: "z-ceo", deskX: 0.5, deskY: 0.48, color: "#ffeec2", rugW: 0.16, rugH: 0.22 },
 ];
@@ -191,21 +191,18 @@ export default function OfficeCanvas() {
 
     let floorTile: HTMLCanvasElement | null = null;
     let wallTile: HTMLCanvasElement | null = null;
-    let deskTile: HTMLCanvasElement | null = null;
-    let chairTile: HTMLCanvasElement | null = null;
+    let deskWithChairTile: HTMLCanvasElement | null = null;
 
     Promise.all([
       loadKeyed(TILESET.floor.src),
       loadKeyed(TILESET.wall.src),
-      loadKeyed(TILESET.desk.src),
-      loadKeyed(TILESET.chair.src),
+      loadKeyed(TILESET.deskWithChair.src),
       ...characters.map((c) => loadKeyed(c.def.sprite)),
-    ]).then(([floorImg, wall, desk, chair, ...keyed]) => {
+    ]).then(([floorImg, wall, deskWithChair, ...keyed]) => {
       if (cancelled) return;
       floorTile = floorImg;
       wallTile = wall;
-      deskTile = desk;
-      chairTile = chair;
+      deskWithChairTile = deskWithChair;
       keyed.forEach((c, i) => (characters[i].img = c));
     });
 
@@ -344,6 +341,8 @@ export default function OfficeCanvas() {
         ctx!.restore();
       }
 
+      drawZoneLabels();
+
       // cozy vignette — darken only near the edges
       const vignette = ctx!.createRadialGradient(
         CANVAS_W / 2, CANVAS_H / 2, Math.min(CANVAS_W, CANVAS_H) * 0.32,
@@ -378,23 +377,54 @@ export default function OfficeCanvas() {
       }
     }
 
-    function drawDesks() {
+    function drawZoneLabels() {
+      ctx!.save();
+      ctx!.font = "13px ui-sans-serif, system-ui, sans-serif";
+      ctx!.textBaseline = "top";
+      ctx!.fillStyle = "#3b3245";
+      for (const zone of ZONES) {
+        if (!zone.label) continue;
+        const cx = zone.deskX * CANVAS_W;
+        const cy = zone.deskY * CANVAS_H;
+        const w = zone.rugW * CANVAS_W;
+        const h = zone.rugH * CANVAS_H;
+        ctx!.fillText(zone.label, cx - w / 2 + 10, cy - h / 2 + 8);
+      }
+      ctx!.restore();
+    }
+
+    type DrawItem = { y: number; draw: () => void };
+
+    /** Per-zone furniture + the seated resident, in explicit back-to-front
+     *  order: desk_with_chair sprite (behind) → character (sitting on it).
+     *  A tiny y-epsilon keeps the pair grouped at the zone's desk line `cy`
+     *  so they still interleave correctly with other zones and walking
+     *  characters in the depth sort. */
+    function buildSceneItems(): DrawItem[] {
+      const items: DrawItem[] = [];
       for (const zone of ZONES) {
         const cx = zone.deskX * CANVAS_W;
         const cy = zone.deskY * CANVAS_H;
-        if (deskTile && deskTile.width) {
-          const d = TILESET.desk;
-          const dw = d.w * 0.34;
-          const dh = d.h * 0.34;
-          ctx!.drawImage(deskTile, d.x, d.y, d.w, d.h, cx - dw / 2, cy - dh / 2, dw, dh);
+        const resident = characters.find((c) => c.def.zoneId === zone.id && c.phase === "sitting");
+
+        if (deskWithChairTile && deskWithChairTile.width) {
+          const f = TILESET.deskWithChair;
+          const fw = f.w * 0.34;
+          const fh = f.h * 0.34;
+          const fy = cy - fh * 0.5;
+          items.push({
+            y: cy - 0.001,
+            draw: () => ctx!.drawImage(deskWithChairTile!, f.x, f.y, f.w, f.h, cx - fw / 2, fy, fw, fh),
+          });
         }
-        if (chairTile && chairTile.width) {
-          const ch = TILESET.chair;
-          const cw = ch.w * 0.26;
-          const chh = ch.h * 0.26;
-          ctx!.drawImage(chairTile, ch.x, ch.y, ch.w, ch.h, cx - cw / 2, cy + 14, cw, chh);
+        if (resident) {
+          items.push({ y: cy, draw: () => drawCharacter(resident) });
         }
       }
+      for (const c of characters) {
+        if (c.phase !== "sitting") items.push({ y: c.y, draw: () => drawCharacter(c) });
+      }
+      return items;
     }
 
     function drawCharacter(c: Character) {
@@ -407,7 +437,7 @@ export default function OfficeCanvas() {
       const dw = sw * SCALE;
       const dh = ROW_H * SCALE;
       const dx = c.x - dw / 2;
-      const dy = c.y - dh + dh * 0.18;
+      const dy = c.y - dh * 0.82;
 
       ctx!.drawImage(c.img, sx, sy, sw, ROW_H, dx, dy, dw, dh);
 
@@ -461,12 +491,12 @@ export default function OfficeCanvas() {
 
       ctx!.clearRect(0, 0, CANVAS_W, CANVAS_H);
       drawFloorAndWalls();
-      drawDesks();
 
       update(dt);
 
-      const sorted = [...characters].sort((a, b) => a.y - b.y);
-      for (const c of sorted) drawCharacter(c);
+      const drawList = buildSceneItems();
+      drawList.sort((a, b) => a.y - b.y);
+      for (const item of drawList) item.draw();
 
       raf = requestAnimationFrame(frame);
     }
