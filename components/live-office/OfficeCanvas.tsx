@@ -47,8 +47,6 @@ const SPRITES = {
   chairSW: "/sprites/chair_iso_sw.png",
   sofa: "/sprites/sofa_iso.png",
   coffeeTable: "/sprites/coffee_table_iso.png",
-  plantLarge: "/sprites/plant_large.png",
-  plantTall: "/sprites/plant_tall.png",
   lamp: "/sprites/lamp_floor.png",
   neonFocus: "/sprites/neon_focus.png",
   neonDesign: "/sprites/neon_design.png",
@@ -238,12 +236,6 @@ const FURNITURE: FurnitureDef[] = [
   // Lounge — bottom-centre, anchors the CEO's roaming seat
   { id: "sofa", src: SPRITES.sofa, xFrac: 0.5, yFrac: 0.50, height: 78 },
   { id: "coffee-table", src: SPRITES.coffeeTable, xFrac: 0.5, yFrac: 0.555, height: 38 },
-  // Decoration — plants scattered around the perimeter
-  { id: "plant-1", src: SPRITES.plantLarge, xFrac: 0.035, yFrac: 0.46, height: 105 },
-  { id: "plant-2", src: SPRITES.plantLarge, xFrac: 0.965, yFrac: 0.46, height: 105 },
-  { id: "plant-3", src: SPRITES.plantLarge, xFrac: 0.5, yFrac: 0.95, height: 105 },
-  { id: "plant-4", src: SPRITES.plantTall, xFrac: 0.28, yFrac: 0.16, height: 125 },
-  { id: "plant-5", src: SPRITES.plantTall, xFrac: 0.63, yFrac: 0.16, height: 125 },
   // Floor lamps — also drive the warm glow overlay pass
   { id: "lamp-1", src: SPRITES.lamp, xFrac: 0.06, yFrac: 0.66, height: 95, glow: true },
   { id: "lamp-2", src: SPRITES.lamp, xFrac: 0.94, yFrac: 0.66, height: 95, glow: true },
@@ -267,8 +259,6 @@ const ASSET_SOURCES: string[] = [
   SPRITES.chairSW,
   SPRITES.sofa,
   SPRITES.coffeeTable,
-  SPRITES.plantLarge,
-  SPRITES.plantTall,
   SPRITES.lamp,
   SPRITES.neonFocus,
   SPRITES.neonDesign,
